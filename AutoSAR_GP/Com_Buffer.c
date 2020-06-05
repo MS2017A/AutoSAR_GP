@@ -25,14 +25,13 @@ void Com_PackSignalsToPdu(uint16 ComIPuId)
 	}
 }
 
-
+//TODO: rename to static Com_PduUnpacking()
 void Com_UnPackSignalsFromPdu(uint16 ComIPuId)
 {
 	uint8 signalID = 0;
 //	const ComSignal_type * signal = NULL_PTR;
 //	const Com_Asu_Signal_type * Asu_Signal = NULL_PTR;
 	const ComIPdu_type *IPdu = GET_IPdu(ComIPuId);
-
 	for ( signalID = 0; (IPdu->ComIPduSignalRef[signalID] != NULL_PTR); signalID++)
 	{
 //		signal = IPdu->ComIPduSignalRef[signalID];
@@ -161,6 +160,8 @@ void Com_ReadSignalDataFromPduBuffer(const uint16 signalId, void *signalData)
 
 
 	uint8 x;
+	//TODO: using the approach of looping for u32
+	//TODO: using switch case according to the size of the data
 	for(i = 0; i<=signalLength; i++)
     {
         pduMask = 255;
@@ -181,6 +182,7 @@ void Com_ReadSignalDataFromPduBuffer(const uint16 signalId, void *signalData)
             *dataBytes = (* dataBytes) | data;
             x= *dataBytes;
         }
+        //TODO: why using shifts
         else
         {
             pduMask = pduMask >> (8-BitOffsetInByte);
