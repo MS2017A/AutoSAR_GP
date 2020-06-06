@@ -18,7 +18,7 @@
 
 /* signals Buffer */
 uint8 ComSignalBuffer_1 [1];
-uint8 ComSignalBuffer_2 [1];
+uint8 ComSignalBuffer_2 [1];//TODO:config tool shall write the initial value
 uint8 ComSignalBuffer_3 [1];
 uint8 ComSignalBuffer_4 [1];
 //uint8 ComSignalBuffer_4 [2];
@@ -34,7 +34,7 @@ const ComSignal_type ComSignal[] =
         .ComBitSize= 8,
         .ComSignalType = BOOLEAN,
         .ComTransferProperty = TRIGGERED_ON_CHANGE,
-        .ComIPduHandleId=1,
+        .ComIPduHandleId=1,//TODO: replace with symbolic name
         .ComNotification=NULL_PTR,
 		.ComSignalDataPtr = ComSignalBuffer_1
     },
@@ -140,6 +140,7 @@ const ComSignal_type ComSignal[] =
 
 };
 
+//TODO: uint16 array that includes the index of signals
 /* IPdu signal lists. */
 const ComSignal_type * const ComIPduSignalRefs_Can_Message_1[] = {
     &ComSignal[ heatleft ],
@@ -148,6 +149,7 @@ const ComSignal_type * const ComIPduSignalRefs_Can_Message_1[] = {
 	NULL_PTR
 };
 
+//TODO: uint16 array that includes the index of signals
 const ComSignal_type * const ComIPduSignalRefs_Can_Message_2[] = {
     &ComSignal[ passengeronleft ],
     &ComSignal[ passengeronright ],
@@ -172,10 +174,22 @@ const ComIPdu_type ComIPdu[] =
     { // CanDB_Message_1
         .ComIPduDirection = SEND ,
 		.ComIPduSize=3,
-        .ComIPduHandleId = 0 ,
+
+		//TODO:remove this parameter ComIPduHandleId
+        .ComIPduHandleId = 0 ,//TODO:replace with symbolic name
+
+        //TODO: uint16* to an array that includes the index of signals
         .ComIPduSignalRef =ComIPduSignalRefs_Can_Message_1,
+
+        //TODO: add parameter number of signals
+
 		.ComIPduDataPtr=ComIPduBuffer_1,
-		.ComIPduType = NORMAL,
+
+		//TODO:change to UINT8 and macros
+		.ComIPduType = NORMAL/*,
+
+        TODO:replace struct with pointer to struct
+		TODO: removeStruct
         .ComTxIPdu =
         {
              .ComTxModeFalse =
@@ -193,11 +207,12 @@ const ComIPdu_type ComIPdu[] =
              .ComTxIPduClearUpdateBit = TRANSMIT,
              .ComTxIPduUnusedAreasDefault = 0,
 						 
-        }
+        }TODO:removeStruct*/
     },
     { // CanDB_Message_2
         .ComIPduDirection = RECEIVE ,
 		.ComIPduSize=3,
+		//TODO: it must be also configured in TX IPDU's
 		.ComIPduSignalProcessing = IMMEDIATE,
         .ComIPduHandleId = 1 ,
         .ComIPduSignalRef = ComIPduSignalRefs_Can_Message_2,
@@ -274,11 +289,13 @@ const ComIPdu_type ComIPdu[] =
 /* Com Config Container */
 const ComConfig_type ComConfiguration =
 {
+     //TODO: May be changed to MACROS
     .ComTimeBase =
     {
          .ComRxTimeBase = 100,
          .ComTxTimeBase = 200
     },
+    //TODO: Must Removed since they have no use
     .ComIPdu = ComIPdu,
     .ComSignal = ComSignal
 };

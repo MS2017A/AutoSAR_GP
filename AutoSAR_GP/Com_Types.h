@@ -59,6 +59,8 @@ typedef enum {
     TRIGGERTRANSMIT
 }ComTxIPduClearUpdateBit_type;
 
+
+//TODO:REMOVE
 /* Configuration structure for Tx-mode for I-PDUs. */
 typedef struct
 {
@@ -82,6 +84,8 @@ typedef struct
 	const uint16 ComTxModeTimePeriod;
 } ComTxMode_type;
 
+
+//TODO:remove
 /* ComFilter evaluates to true */
 typedef struct 
 {
@@ -97,17 +101,28 @@ typedef struct
 /* This container must be included if COM_IPDU_DIRECTION is configured to SEND */
 typedef struct 
 {
+    //TODO: need to be implemented in code
 	/* Minimum delay between successive transmissions of the IPdu */
 	const uint32 ComMinimumDelayTime;
 
+	//TODO:change to const uint8 and macros
 	ComTxIPduClearUpdateBit_type ComTxIPduClearUpdateBit;
 
 	/* COM will fill unused areas within an IPdu with this bit patter */
 	const uint8 ComTxIPduUnusedAreasDefault;
+
+	//TODO:Remove these parameters
 	/* ComFilter evaluates to true */
 	const ComTxModeTrue_type ComTxModeTrue ;
 	/* ComFilter evaluates to ComTxModeFalse */
 	const ComTxModeFalse_type ComTxModeFalse ;
+
+	//TODO:add const uint8 ComTxModeMode--> macros to DIRECT,MIXED,NONE,PERIODIC
+	//TODO:add const uint8 ComTxModeNumberOfRepetitions
+	//TODO:add const uint16 ComTxModeRepetitionPeriod
+	//TODO:add const uint16 ComTxModeTimeOffset
+	//TODO:add const uint16 ComTxModeTimePeriod
+
 } ComTxIPdu_type;
 
 
@@ -149,19 +164,27 @@ typedef struct {
     uint16 ComHandleId;
     /* Size in bits, for integer signal types. For ComSignalType UINT8_N and UINT8_DYN
        the size shall be configured by ComSignalLength. For ComSignalTypes FLOAT32 and FLOAT64 the size is already defined by the signal type 
-	   and therefore may be omitted. */
+	   and therefore may be omitted.
+	   TODO:remove and merge with ComSignalLength_OR_ComBitSize
+	    */
     uint8 ComBitSize;
     /*  The AUTOSAR type of the signal. Whether or not the signal is signed or unsigned can be found by examining the value of this attribute.
-        This type could also be used to reserved appropriate storage in AUTOSAR COM.*/
+        This type could also be used to reserved appropriate storage in AUTOSAR COM.
+        TODO: Change to uint8 and macros
+        */
     const ComSignalType_type ComSignalType;
     /*  Defines if a write access to this signal can trigger the transmission of the correspon-ding I-PDU.
-     *  If the I-PDU is triggered, depends also on the transmission mode of the corresponding I-PDU.*/
+     *  If the I-PDU is triggered, depends also on the transmission mode of the corresponding I-PDU.
+     *  TODO: Change to uint8 and macros
+     *  */
     const ComTransferProperty_type ComTransferProperty;
     //string  ComSignalInitValue; that parameter we don't know its datatype
 
 	/* IPDU id of the IPDU that this signal belongs to.
 	 * This is initialized by Com_Init() and should not be configured.
 	 */
+
+    //TODO:Aproved
 	const uint16 ComIPduHandleId; // Not in SWS
 
 	void * const ComSignalDataPtr;
@@ -169,9 +192,15 @@ typedef struct {
 	/* notification function. */
 	void (*ComNotification) (void);
 
+	//TODO: We will not implement ComErrorNotification
+
+	//TODO: We will not implement ComSignalEndianness
+
+	//TODO: uint32 ComSignalLength_OR_ComBitSize
+
 } ComSignal_type;
 
-
+//TODO: Is this suppose to be here of in cfg.h?
 typedef struct {
 	/* size of the Pdu in bytes */
 	uint8 ComIPduSize; /* violation of the sws container */
@@ -180,6 +209,8 @@ typedef struct {
     ComIPduDirection_type ComIPduDirection;
     /* The numerical value used as the ID of this I-PDU */
     uint16 ComIPduHandleId ;
+
+    //TODO:remove struct
     /* Container of transmission related parameters. */
     const ComTxIPdu_type ComTxIPdu;
 
@@ -188,6 +219,7 @@ typedef struct {
     /* Reference to the actual pdu data storage */
     void *const ComIPduDataPtr;     /* violation of the sws container */
 
+    //TODO:change to uint8 and macros
     ComIPduType_type ComIPduType;
 
     /* References to all signals and signal groups contained in this IPDU.

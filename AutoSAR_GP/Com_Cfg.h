@@ -24,7 +24,7 @@
 //#define CanDB_Signal_32_21_BE 4
 //#define CanDB_Signal_1_4_LE 5
 
-
+//TODO:add symbolic names to IPDU handled ID
 
 
 

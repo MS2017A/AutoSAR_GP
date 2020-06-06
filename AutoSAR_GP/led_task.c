@@ -125,8 +125,6 @@ LEDTask(void *pvParameters)
         Com_ReceiveSignal(passengeronright, (void*) &Switch2_Curr ) ;
         UARTprintf("\nCOM_RecieveSignal Switch2 is executed\n");
 
-        Switch1_Curr=Switch1;
-        Switch2_Curr=Switch2;
 //        UARTprintf("Switch1=%d, Switch2=%d, \nSwitch1_Prev=%d, Switch2_Prev=%d\n",Switch1_Curr,Switch2_Curr,Switch1_Prev,Switch2_Prev);
         if((Switch1_Curr!=Switch1_Prev))
         {
