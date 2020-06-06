@@ -42,6 +42,7 @@
 
 #include "Com.h"
 
+//uint8 Switch1,Switch2;
 
 //*****************************************************************************
 //
@@ -100,7 +101,7 @@ SwitchTask(void *pvParameters)
                 if((ui8CurButtonState & ALL_BUTTONS) == LEFT_BUTTON)
                 {
                     Data=1;
-                    Switch1=1;
+//                    Switch1=1;
 //                    Switch2=0;
                     Com_SendSignal(heatleft, &Data);
                     UARTprintf("\nCOM_SendSignal Switch1 is executed\n");
@@ -123,8 +124,8 @@ SwitchTask(void *pvParameters)
                 else if((ui8CurButtonState & ALL_BUTTONS) == RIGHT_BUTTON)
                 {
                     Data=1;
-                    Switch2=1;
-                    Com_SendSignal(heatleft, &Data);
+ //                   Switch2=1;
+                    Com_SendSignal(heatright, &Data);
                     UARTprintf("\nCOM_SendSignal Switch2 is executed\n");
 
                     //
@@ -144,8 +145,8 @@ SwitchTask(void *pvParameters)
             }
             else
             {
-                Switch1=0;
-                Switch2=0;
+//                Switch1=0;
+//                Switch2=0;
                 Data=0;
                 Com_SendSignal(heatleft, &Data);
                 UARTprintf("\nCOM_SendSignal Switch1 is executed\n");
