@@ -209,6 +209,7 @@ void Com_ReadSignalDataFromPduBuffer(const uint16 signalId, void *signalData)
 void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * signalData)
 {
 	const ComSignal_type * Signal =  GET_Signal(signalId);
+	//TODO: must add +if(Signal->ComBitSize%8)
 	memcpy(Signal->ComSignalDataPtr, signalData, Signal->ComBitSize/8);
 }
 
@@ -216,6 +217,7 @@ void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * sign
 void Com_ReadSignalDataFromSignalBuffer (const uint16 signalId,  void * signalData)
 {
 	const ComSignal_type * Signal =  GET_Signal(signalId);
+	//TODO: must add +if(Signal->ComBitSize%8)
 	memcpy(signalData, Signal->ComSignalDataPtr, Signal->ComBitSize/8);
 }
 
