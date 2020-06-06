@@ -75,42 +75,35 @@ void Com_Init( const ComConfig_type* config)
 	}
 }
 
-
-//TODO: rename to Com_RxProcessIPDU()
 static void Com_RxProcessSignals(PduIdType ComRxPduId)
 {
     const ComSignal_type *comSignal = NULL_PTR;
     const ComIPdu_type *IPdu = GET_IPdu(ComRxPduId);
     Com_Asu_Signal_type * Asu_Signal = NULL_PTR;
     uint8 signalId;
-    //TODO: remove the for loop
-    for( signalId = 0; IPdu->ComIPduSignalRef[signalId] != NULL_PTR; signalId++)
+        for( signalId = 0; IPdu->ComIPduSignalRef[signalId] != NULL_PTR; signalId++)
         {
         	comSignal = IPdu->ComIPduSignalRef[signalId];
         	Asu_Signal = GET_AsuSignal(comSignal->ComHandleId);
-//TODO: pre-compiling for the the ComUpdateBit : enable/disable per signal (check in the SWS)
-//TODO: move the check to unpackingSignal
+
         	if (CHECKBIT(IPdu->ComIPduDataPtr, comSignal->ComUpdateBitPosition))
         	{
-//TODO: Must be removed as checked before in RxIndication
-        	    if (IPdu->ComIPduSignalProcessing == IMMEDIATE)
+				if (IPdu->ComIPduSignalProcessing == IMMEDIATE)
 				{
 					// unpack the pdu and update signal buffer
 					Com_UnPackSignalsFromPdu(ComRxPduId);
 
 					// If signal processing mode is IMMEDIATE, notify the signal callback.
-//TODO: move this check to the unpacking function
-//TODO: compilation check for enable/disable the ComNotification
 					if (IPdu->ComIPduSignalRef[signalId]->ComNotification != NULL_PTR)
 					{
 						IPdu->ComIPduSignalRef[signalId]->ComNotification();
 					}
 				}
-//				else
-//				{
-//					// Signal processing mode is DEFERRED, mark the signal as updated.
-//					Asu_Signal->ComSignalUpdated = 1;
-//				}
+				else
+				{
+					// Signal processing mode is DEFERRED, mark the signal as updated.
+					Asu_Signal->ComSignalUpdated = 1;
+				}
         	}
         }
 }
@@ -130,8 +123,7 @@ void Com_MainFunctionRx(void)
 	{
 		IPdu = GET_IPdu(pduId);
 		Asu_IPdu = GET_AsuIPdu(pduId);
-//TODO: must check the Pdu is deffered
-//TODO: ComPduupdated must be added
+
 		for (signalID = 0; (IPdu->ComIPduSignalRef != NULL_PTR) && (IPdu->ComIPduSignalRef[signalID] != NULL_PTR); signalID++)
 		{
             if (Asu_Signal->ComSignalUpdated)
@@ -411,10 +403,9 @@ Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId )
 void Com_RxIndication(PduIdType ComRxPduId, const PduInfoType* PduInfoPtr)
 {
 	const ComIPdu_type *IPdu = GET_IPdu(ComRxPduId);
-//TODO: must add critical section
-//TODO: add enable/disable GI
+
 	memcpy(IPdu->ComIPduDataPtr, PduInfoPtr->SduDataPtr, IPdu->ComIPduSize);
-//TODO: check for the type of the frame : Immediate or differed
+
 	Com_RxProcessSignals(ComRxPduId);
 
 	return;
