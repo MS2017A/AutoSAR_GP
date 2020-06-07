@@ -202,6 +202,7 @@ void Com_MainFunctionTx(void)
 
                 if(Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeTimePeriodTimer<=0)
                 {
+                    //TODO: make it static
                     if(Com_TriggerIPDUSend(pduId) == E_OK)
                     {
                         Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeTimePeriodTimer = \
@@ -214,7 +215,7 @@ void Com_MainFunctionTx(void)
             case DIRECT:
                 if(Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft > 0)
                 {
-
+                    //TODO:menimum time in SWS.
                     timerDec(Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeRepetitionPeriodTimer);
 
                     if(Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeRepetitionPeriodTimer <= 0 || Asu_IPdu->Com_Asu_First_Repetition )
@@ -257,9 +258,10 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
     switch(Signal->ComTransferProperty)
     {
 #if 0
+    //TODO:remove code redundancy using macro like function
     case TRIGGERED_WITHOUT_REPETITION:
         Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft = 1;
-        Asu_IPdu->Com_Asu_Pdu_changed = FALSE;
+        Asu_IPdu->Com_Asu_Pdu_changed = FALSE;//TODO:figuer out the flag value
         break;
 
     case TRIGGERED:
@@ -270,7 +272,7 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
 
     case TRIGGERED_ON_CHANGE:
 #define Compare_the_Signal_with_local_Buffer    1
-        if (#define Compare_the_Signal_with_local_Buffer    1)
+        if (Compare_the_Signal_with_local_Buffer)
         {
             Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft = \
                     (IPdu->ComTxIPdu.ComTxModeFalse.ComTxMode.ComTxModeNumberOfRepetitions) + 1;
@@ -279,7 +281,7 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
         break;
 
     case TRIGGERED_ON_CHANGE_WITHOUT_REPETITION:
-        if (#define Compare_the_Signal_with_local_Buffer    1)
+        if (Compare_the_Signal_with_local_Buffer)
         {
             Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft = 1;
             Asu_IPdu->Com_Asu_Pdu_changed = FALSE;
@@ -317,12 +319,6 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
 //TODO: must check the updateBitPosition configuration [SWS_Com_00062]
     /* Set the update bit of this signal */
     SETBIT(IPdu->ComIPduDataPtr, Signal->ComUpdateBitPosition);
-    uint8 x;
-    uint8 i;
-    for ( i =0; i<8; i++)
-    {
-        x = *(uint8 *)((uint8 *)IPdu->ComIPduDataPtr + i);
-    }
 //TODO: must be in the switch case. since the signal type might be ON_CHANGE.
     Asu_IPdu->Com_Asu_First_Repetition = TRUE;
 
@@ -407,28 +403,27 @@ Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId )
     PduInfoType PduInfoPackage;
     uint8 signalID;
 
-    Com_PackSignalsToPdu(PduId);
-    PduInfoPackage.SduDataPtr = (uint8 *)IPdu->ComIPduDataPtr;
-    PduInfoPackage.SduLength = IPdu->ComIPduSize;
-/*    uint8 i;
-    uint8 x;
-    for ( i =0; i<PduInfoPackage.SduLength; i++)
-    {
-        x = *(uint8 *)((uint8 *)PduInfoPackage.SduDataPtr + i);
-    }*/
-
+    //TODO: was not here
     if (Asu_IPdu->PduBufferState.Locked)
     {
         return E_NOT_OK;
     }
+
+    Com_PackSignalsToPdu(PduId);
+    PduInfoPackage.SduDataPtr = (uint8 *)IPdu->ComIPduDataPtr;
+    PduInfoPackage.SduLength = IPdu->ComIPduSize;
+
     //TODO:else--> make local std_error type
+    //TODO:check if sent to TPTrigger or transmit.
     if (PduR_ComTransmit(com_pdur[IPdu->ComIPduHandleId], &PduInfoPackage) == E_OK)
     {
+        //TODO: Preprocessor checks if update bit is enabled
         // Clear all update bits for the contained signals
         if(IPdu->ComTxIPdu.ComTxIPduClearUpdateBit == TRANSMIT)
         {
             for ( signalID = 0; (IPdu->ComIPduSignalRef[signalID] != NULL_PTR); signalID++)
             {
+                //TODO:check this signal update bit is enabled
                 CLEARBIT(IPdu->ComIPduDataPtr, IPdu->ComIPduSignalRef[signalID]->ComUpdateBitPosition);
             }
         }
