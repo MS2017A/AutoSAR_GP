@@ -10,17 +10,16 @@
  * 
  ****************************************************/
 #include "Com.h"
-#include "Com_Types.h"
 #include "Com_helper.h"
 #include "Com_Buffer.h"
 #include "Com_Asu_Types.h"
 #include "PduR_Com.h"
+#include "PduR.h"
 #include "Com_Cbk.h"
 
 /*****************************************************************
  *                     Functions Definitions                     *
  *****************************************************************/
-
 
 /* Com_Config declaration*/
 const ComConfig_type * ComConfig;

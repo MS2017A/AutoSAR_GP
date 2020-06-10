@@ -4,9 +4,9 @@
  *
  * Author: AUTOSAR COM Team 
  * 
- * Date Created: 13 March 2019	
+ * Date Created: Jun 2020	
  * 
- * Version	: 01	
+ * Version	: 4.0	
  * 
  ****************************************************/
 #ifndef COM_CFG_H_
@@ -16,18 +16,39 @@
 
 
 /* signal definition */
-#define passengeronleft 0
-#define passengeronright 1
-#define heatleft 2
-#define heatright 3
+#define SW_1_TX 						0
+#define SW_2_TX 						1
+#define SW_1_Rx 						2
+#define SW_2_Rx 						3
 //#define CanDB_Signal_29_12_BE_Tester 3
 //#define CanDB_Signal_32_21_BE 4
 //#define CanDB_Signal_1_4_LE 5
 
 
 
+/************************************************comGeneral****************************************************************/
+/*parameter: cancellation feature
+	range: true, false
+	default_value: True
+	//name from sws & _
+	signal group not now
+*/
+#define	COM_CANCELLATION_SUPPORT					TRUE
 
+/*error detection*/
+#define COM_CONFIGURATION_USE_DET					FALSE
 
+/*Enables globally for the whole Com module the minimum delay time moni-toring for cyclic and repeated transmissions 
+  (ComTxModeMo-de=PERIODIC or ComTxModeMode=MIXED
+	default_value: True
+*/
+#define COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION		TRUE
+
+/* The period between successive calls to Com_MainFunctionRx in ms */
+#define ComRxTimeBase 								100
+
+/* The period between successive calls to Com_MainFunctionTx in ms */
+#define ComTxTimeBase								200
 
 #endif
 
