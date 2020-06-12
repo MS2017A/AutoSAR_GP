@@ -69,11 +69,11 @@ extern const ComSignal_type ComSignals[];
 extern const ComTxIPdu_type ComTxIPdus[];
 
 /* Global variables*/
-privateIPdu_type privateIPdus[COM_NUM_OF_IPDU];
-privateTxIPdu_type privateTxIPdus[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
-const uint16 numberOfSendIPdus=sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type);
-uint16 sendIPdusIds[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
-notificationType pendingNotifications[COM_NUM_OF_SIGNAL];
+static privateIPdu_type privateIPdus[COM_NUM_OF_IPDU];
+static privateTxIPdu_type privateTxIPdus[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
+static const uint16 numberOfSendIPdus=sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type);
+static uint16 sendIPdusIds[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
+static notificationType pendingNotifications[COM_NUM_OF_SIGNAL];
 
 uint16 numberOfRecievedPdu;
 uint8  rxIndicationProcessingDeferredPduIndex;
@@ -128,45 +128,21 @@ void Com_MainFunctionRx(void)
 {
     /*TODO:change initialization place*/
     uint16 mainRxNumberOfReceivedPdu;
-    Com_Asu_IPdu_type *Asu_IPdu = NULL_PTR;
-    uint16 signalID, pduId;
+    uint16 pduId;
     uint16 Id;
-    boolean pduUpdated = FALSE;
 
     ENTER_CRITICAL_SECTION();
     mainRxNumberOfReceivedPdu=rxindicationNumberOfRecievedPdu;
     rxindicationNumberOfRecievedPdu=0;
     rxIndicationProcessingDeferredPduIndex^=1;
     EXIT_CRITICAL_SECTION();
-    for(Id=0;pduId<mainRxNumberOfReceivedPdu;Id++)
+    for(Id=0;Id<mainRxNumberOfReceivedPdu;Id++)
     {
         pduId = rxDeferredPduArr[Id];
-        Asu_IPdu = GET_AsuIPdu(rxDeferredPduArr[Id]);
         if (ComIPdus[pduId].ComIPduType == NORMAL)
         {
-            /* unlock the buffer */
-            UNLOCKBUFFER(&Asu_IPdu->PduBufferState);
-
             /* copy the deferred buffer to the actual pdu buffer */
             Com_PduUnpacking(pduId);
-
-            /* loop on the signal in this ipdu */
-            for (signalID = 0; ComIPdus[pduId].ComIPduNumOfSignal ; signalID++)
-            {
-                ComIPdus[pduId].ComIPduSignalRef[signalID];
-                Asu_Signal = GET_AsuSignal(signal->ComHandleId);
-
-                /* if at least on signal is Updated, mark this Pdu as Updated */
-                //TODO: must check is that true editing
-                if (Asu_Signal->ComSignalUpdated)
-                {
-                    if (signal->ComNotification != NULL_PTR)
-                    {
-                        signal->ComNotification();
-                    }
-                    Asu_Signal->ComSignalUpdated = FALSE;
-                }
-            }
         }
     }
 }
@@ -382,6 +358,7 @@ uint8 Com_ReceiveSignal( Com_SignalIdType SignalId, void* SignalDataPtr )
     return E_OK;
 }
 
+//TODO: must be edited
 BufReq_ReturnType Com_CopyTxData( PduIdType id, const PduInfoType* info, const RetryInfoType* retry, PduLengthType* availableDataPtr )
 {
     ComIPdu_type *IPdu = GET_IPdu(id);
@@ -404,6 +381,8 @@ BufReq_ReturnType Com_CopyTxData( PduIdType id, const PduInfoType* info, const R
 
 }
 
+//TODO: it will be run later
+#if 0
 BufReq_ReturnType Com_CopyRxData( PduIdType id, const PduInfoType* info, PduLengthType* bufferSizePtr )
 {
     Com_Asu_IPdu_type *Asu_IPdu = GET_AsuIPdu(id);
@@ -425,6 +404,7 @@ BufReq_ReturnType Com_CopyRxData( PduIdType id, const PduInfoType* info, PduLeng
         return BUFREQ_E_NOT_OK;
     }
 }
+#endif
 
 Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId )
 {
@@ -477,9 +457,7 @@ Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId )
 
 void Com_RxIndication(PduIdType ComRxPduId, const PduInfoType* PduInfoPtr)
 {
-    ENTER_CRITICAL_SECTION();
-    memcpy(IPdu->ComIPduDataPtr, PduInfoPtr->SduDataPtr, IPdu->ComIPduSize);
-    EXIT_CRITICAL_SECTION();
+    memcpy(ComIPdus[ComRxPduId].ComIPduDataPtr, PduInfoPtr->SduDataPtr, ComIPdus[ComRxPduId].ComIPduSize);
     if(ComIPdus[ComRxPduId].ComIPduDirection == RECEIVE)
     {
         if(ComIPdus[ComRxPduId].ComIPduSignalProcessing == IMMEDIATE)
@@ -494,6 +472,8 @@ void Com_RxIndication(PduIdType ComRxPduId, const PduInfoType* PduInfoPtr)
     }
 }
 
+//TODO: it will be runned later
+#if 0
 BufReq_ReturnType Com_StartOfReception(PduIdType PduId,const PduInfoType *info,PduLengthType TpSduLength,PduLengthType *bufferSizePtr)
 {
     ComIPdus[PduId];
@@ -528,7 +508,7 @@ BufReq_ReturnType Com_StartOfReception(PduIdType PduId,const PduInfoType *info,P
     }
     return BUFREQ_E_NOT_OK;
 }
-
+#endif
 
 /*TODO: what we must do*/
 void Com_TpRxIndication(PduIdType id,Std_ReturnType Result)

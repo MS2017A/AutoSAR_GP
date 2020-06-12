@@ -31,35 +31,38 @@ void Com_PduUnpacking(PduIdType ComIPuId)
             if (CHECKBIT(ComIPdus[ComRxPduId].ComIPduDataPtr, (ComIPdus[ComRxPduId].ComIPduSignalRef)[signalIndex].ComUpdateBitPosition))
             {
                 Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalRef)[signalIndex]);
-                /* If signal processing mode is IMMEDIATE, notify the signal callback. */
-                if(ComIPdus[ComIPuId].ComIPduSignalProcessing == IMMEDIATE)
+                if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
                 {
-                    if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
-                    {
-                        ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification();
-                    }
-                    else
-                    {
-                        /* Following MISRA rules */
-                    }
+                    ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification();
                 }
                 else
                 {
-                    /*TODO: must be edited*/
-                    Asu_Signal->ComSignalUpdated=TRUE;
+                    /* Following MISRA rules */
                 }
+            }
+        }
+        else
+        {
+            /* Following MISRA rules */
+        }
+    }
+    else
+    {
+        Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalRef)[signalIndex]);
+        /* If signal processing mode is IMMEDIATE, notify the signal callback. */
+        if(ComIPdus[ComIPuId].ComIPduSignalProcessing == IMMEDIATE)
+        {
+            if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
+            {
+                ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification();
             }
             else
             {
                 /* Following MISRA rules */
             }
         }
-        else
-        {
-            /*TODO: must be edited*/
-            Asu_Signal->ComSignalUpdated=TRUE;
-        }
     }
+}
 }
 
 
