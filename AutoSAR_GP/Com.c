@@ -47,6 +47,7 @@
 
 typedef struct privateIPdu_type
 {
+    /*TODO:move to private TX*/
     boolean updated;
     boolean locked;
 }privateIPdu_type;
@@ -66,23 +67,23 @@ typedef void (*notificationType)(void);
 uint8 com_pdur[] = {vcom};
 
 /* Com_Asu_Config declaration*/
-extern const ComIPdu_type ComIPdus[];
+extern const ComIPdu_type   ComIPdus[];
 extern const ComSignal_type ComSignals[];
 extern const ComTxIPdu_type ComTxIPdus[];
 
 /* Global variables*/
-static privateIPdu_type privateIPdus[COM_NUM_OF_IPDU];
-static privateTxIPdu_type privateTxIPdus[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
-static const uint16 numberOfSendIPdus=sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type);
-static uint16 sendIPdusIds[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
+static privateIPdu_type     privateIPdus[COM_NUM_OF_IPDU];
+static privateTxIPdu_type   privateTxIPdus[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
+static const uint16         numberOfSendIPdus=sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type);
+static uint16               txIPdusIds[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
 /*TODO: make number of signals here to be configured*/
-static notificationType pendingTxNotifications[NUMBER_OF_AUXILARY_ARR][COM_NUM_OF_SIGNAL];
-static uint8 pendingTxNotificationsBufferIndex;
-static uint16 pendingTxNotificationsNumber;
+static notificationType     pendingTxNotifications[NUMBER_OF_AUXILARY_ARR][COM_NUM_OF_SIGNAL];
+static uint8                pendingTxNotificationsBufferIndex;
+static uint16               pendingTxNotificationsNumber;
 
-static uint8  rxIndicationProcessingDeferredPduIndex;
-static uint16 rxindicationNumberOfRecievedPdu;
-static ComIPdu_type  rxDeferredPduArr[NUMBER_OF_AUXILARY_ARR][COM_NUM_OF_IPDU];
+static uint8                rxIndicationProcessingDeferredPduIndex;
+static uint16               rxindicationNumberOfRecievedPdu;
+static ComIPdu_type         rxDeferredPduArr[NUMBER_OF_AUXILARY_ARR][COM_NUM_OF_IPDU];
 
 /*****************************************************************
  *                     Functions Definitions                     *
@@ -90,20 +91,20 @@ static ComIPdu_type  rxDeferredPduArr[NUMBER_OF_AUXILARY_ARR][COM_NUM_OF_IPDU];
 
 void Com_Init( const ComConfig_type* config)
 {
-    /*TODO:add all sendIPdusIds*/
-    /*TODO:init TX time periods*/
     /* 1- loop on IPDUs */
     uint16 pduId;
+    uint16 signalIndex;
+    uint16 txIndex;
+
+    txIndex=0;
     for ( pduId = 0; pduId<COM_NUM_OF_IPDU; pduId++) {
 
-        /* 1.1- Initialize I-PDU */
-        Com_Asu_IPdu_type *Asu_IPdu = GET_AsuIPdu(pduId);
-
-        Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeTimePeriodTimer = \
-                ComTxIPdus[pduId].ComTxModeTimePeriod;
-
-        Asu_IPdu->Com_Asu_Pdu_changed = FALSE;
-        Asu_IPdu->Com_Asu_First_Repetition = TRUE;
+        if(ComIPdus[pduId].ComIPduDirection==SEND)
+        {
+            privateIPdus[pduId].updated=TRUE;
+            txIPdusIds[txIndex]=pduId;
+            txIndex++;
+        }
 
         /* Initialize the memory with the default value.] */
         if (ComTxIPdus[pduId].ComIPduDirection == SEND) {
@@ -111,7 +112,6 @@ void Com_Init( const ComConfig_type* config)
         }
 
         /* For each signal in this PDU */
-        uint16 signalIndex;
         for ( signalIndex = 0; (ComIPdus[pduId].ComIPduNumOfSignal > signalIndex); signalIndex++)
         {
             /* Check for the update Bit is enabled or disabled */
@@ -126,6 +126,12 @@ void Com_Init( const ComConfig_type* config)
             }
         }
     }
+#if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
+    for(txIndex=0;txIndex<numberOfSendIPdus;txIndex++)
+    {
+        privateTxIPdus[txIndex].minimumDelayTimer=ComTxIPdus[txIndex].ComMinimumDelayTime;
+    }
+#endif
 }
 
 void Com_MainFunctionRx(void)
@@ -160,7 +166,7 @@ void Com_MainFunctionTx(void)
 
     for ( sendIPduIndex = 0; sendIPduIndex<numberOfSendIPdus; sendIPduIndex++)
     {
-        IPdu = GET_IPdu(sendIPdusIds[sendIPduIndex]);
+        IPdu = GET_IPdu(txIPdusIds[sendIPduIndex]);
 
         mixed = FALSE;
 
@@ -185,7 +191,7 @@ void Com_MainFunctionTx(void)
                 if(privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer >= ComTxIPdus[IPdu->ComTxIPdu].ComMinimumDelayTime)
                 {
 #endif
-                    if(Com_TriggerIPDUSend(sendIPdusIds[sendIPduIndex])== E_OK)
+                    if(Com_TriggerIPDUSend(txIPdusIds[sendIPduIndex])== E_OK)
                     {
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
                         privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer=0;
@@ -217,7 +223,7 @@ void Com_MainFunctionTx(void)
 #endif
                     )
             {
-                if(Com_TriggerIPDUSend(sendIPdusIds[sendIPduIndex]) == E_OK)
+                if(Com_TriggerIPDUSend(txIPdusIds[sendIPduIndex]) == E_OK)
                 {
                     privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod = \
                             ComTxIPdus[IPdu->ComTxIPdu].ComTxModeTimePeriod;
