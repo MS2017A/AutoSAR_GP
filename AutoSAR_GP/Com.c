@@ -2,19 +2,16 @@
  * File Name: Com.c 
  * Author: AUTOSAR COM Team
  * Date Created: Jun 2020
- * Version	: 4.0
+ * Version  : 4.0
  ****************************************************/
 #include "Com.h"
 #include "Com_helper.h"
 #include "Com_Buffer.h"
-#include "Com_Asu_Types.h"
 #include "PduR_Com.h"
 #include "PduR.h"
 #include "Com_Cbk.h"
 
-
-
-//TODO: check which file must be in
+/*TODO: check which file must be in*/
 #define ENTER_CRITICAL_SECTION()             __asm("    cpsie   i\n");
 #define EXIT_CRITICAL_SECTION()              __asm("    cpsid   i\n");
 
@@ -45,27 +42,52 @@
 
 
 
-#define numberOfAuxilaryArr             2
-/* Global variables for the deferred and Received PDU */
+#define NUMBER_OF_AUXILARY_ARR             2
+
+
+typedef struct privateIPdu_type
+{
+    boolean updated;
+    boolean locked;
+}privateIPdu_type;
+
+typedef struct privateTxTPdu_type
+{
+    float32 remainingTimePeriod;
+    float32 minimumDelayTimer;
+    uint8   numberOfRepetitionsLeft;
+}privateTxTPdu_type;
+
+typedef void (*notificationType)(void);
+
+/* Com_Config declaration*/
+uint8 com_pdur[] = {vcom};
+
+/* Com_Asu_Config declaration*/
+extern const ComIPdu_type ComIPdus[];
+extern const ComSignal_type ComSignals[];
+extern const ComTxIPdu_type ComTxIPdus[];
+
+/* Global variables*/
+privateIPdu_type privateIPdus[COM_NUM_OF_IPDU];
+privateTxTPdu_type privateTxIPdus[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
+const uint16 numberOfSendIPdus=sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type);
+uint16 sendIPdusIds[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
+notificationType pendingNotifications[COM_NUM_OF_SIGNAL];
+
 uint16 numberOfRecievedPdu;
 uint8  rxIndicationProcessingDeferredPduIndex;
 uint16 rxindicationNumberOfRecievedPdu;
-uint8  rxDeferredPduArr[numberOfAuxilaryArr][COM_NUM_OF_IPDU];
+uint8  rxDeferredPduArr[NUMBER_OF_AUXILARY_ARR][COM_NUM_OF_IPDU];
 
 /*****************************************************************
  *                     Functions Definitions                     *
  *****************************************************************/
 
-/* Com_Config declaration*/
-const ComConfig_type * ComConfig;
-uint8 com_pdur[] = {vcom};
-
-/* Com_Asu_Config declaration*/
-extern Com_Asu_Config_type ComAsuConfiguration;
-static Com_Asu_Config_type * Com_Asu_Config = &ComAsuConfiguration;
-
 void Com_Init( const ComConfig_type* config)
 {
+    /*TODO:add all sendIPdusIds*/
+    /*TODO:init TX time periods*/
     /* 1- loop on IPDUs */
     uint16 pduId;
     for ( pduId = 0; pduId<COM_NUM_OF_IPDU; pduId++) {
@@ -104,6 +126,7 @@ void Com_Init( const ComConfig_type* config)
 
 void Com_MainFunctionRx(void)
 {
+    /*TODO:change initialization place*/
     uint16 mainRxNumberOfReceivedPdu;
     Com_Asu_IPdu_type *Asu_IPdu = NULL_PTR;
     uint16 signalID, pduId;
@@ -150,133 +173,198 @@ void Com_MainFunctionRx(void)
 
 void Com_MainFunctionTx(void)
 {
-    const ComIPdu_type *IPdu;
-    Com_Asu_IPdu_type *Asu_IPdu;
-    boolean mixed_t;
-    //Todo:unused variable
-    boolean mixedSent;
+    const ComIPdu_type* IPdu;
+    boolean mixed;
+    uint16  sendIPduIndex;
 
-    //Loop on IPDUs
-    uint16 pduId;
-    for ( pduId = 0; pduId<COM_NUM_OF_IPDU; pduId++)
+    for ( sendIPduIndex = 0; sendIPduIndex<numberOfSendIPdus; sendIPduIndex++)
     {
-        IPdu = GET_IPdu(pduId);
-        Asu_IPdu = GET_AsuIPdu(pduId);
+        IPdu = GET_IPdu(sendIPdusIds[sendIPduIndex]);
 
+        mixed = FALSE;
 
-        /* if it is a send PDU*/
-        if(IPdu->ComIPduDirection == SEND)
+        switch(ComTxIPdus[IPdu->ComTxIPdu].ComTxModeMode)
         {
-            mixed_t = FALSE;
-
-            switch(IPdu->ComTxIPdu.ComTxModeFalse.ComTxMode.ComTxModeMode)
+        /* if the transmission mode is mixed */
+        case MIXED:
+            mixed = TRUE;
+            /* no break because the mixed is periodic and direct */
+            /* if the transmission mode is direct */
+        case DIRECT:
+            /*TODO:check MDT macro*/
+            if(privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer < ComTxIPdus[IPdu->ComTxIPdu].ComMinimumDelayTime)
             {
-            /* if the transmission mode is mixed */
-            case MIXED:
-                mixed_t = TRUE;
-                /* no break because the mixed is periodic and direct */
-                /* if the transmission mode is periodic */
-            case PERIODIC:
-
-                timerDec(Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeTimePeriodTimer);
-
-                if(Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeTimePeriodTimer<=0)
+                privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer+=COM_TX_TIMEBASE;
+            }
+            if(privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft > 0)
+            {
+                if(privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer >= ComTxIPdus[IPdu->ComTxIPdu].ComMinimumDelayTime)
                 {
-                    //TODO: make it static
-                    if(Com_TriggerIPDUSend(pduId) == E_OK)
+                    if(Com_TriggerIPDUSend(sendIPdusIds[sendIPduIndex])== E_OK)
                     {
-                        Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeTimePeriodTimer = \
-                                IPdu->ComTxIPdu.ComTxModeFalse.ComTxMode.ComTxModeTimePeriod;
+                        privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer=0;
+                        privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft--;
                     }
                 }
-                if(!mixed_t)/* in case the Pdu is mixed don't break */
-                    break;
-                /* if the transmission mode is direct */
-            case DIRECT:
-                if(Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft > 0)
+            }
+            if(mixed==FALSE)/* in case the Pdu is mixed don't break */
+            {
+                break;
+            }
+            /* if the transmission mode is periodic */
+        case PERIODIC:
+            if(mixed!=FALSE)
+            {
+                if(privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer < ComTxIPdus[IPdu->ComTxIPdu].ComMinimumDelayTime)
                 {
-                    //TODO:menimum time in SWS.
-                    timerDec(Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeRepetitionPeriodTimer);
-
-                    if(Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeRepetitionPeriodTimer <= 0 || Asu_IPdu->Com_Asu_First_Repetition )
-                    {
-                        if(Com_TriggerIPDUSend(pduId)== E_OK)
-                        {
-                            Asu_IPdu->Com_Asu_TxIPduTimers.ComTxModeRepetitionPeriodTimer = \
-                                    IPdu->ComTxIPdu.ComTxModeFalse.ComTxMode.ComTxModeRepetitionPeriod;
-
-                            Asu_IPdu->Com_Asu_First_Repetition = FALSE;
-
-                            Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft --;
-                        }
-                    }
+                    privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer+=COM_TX_TIMEBASE;
                 }
+            }
+            if((privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod<=0)&&\
+                    (privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer >= ComTxIPdus[IPdu->ComTxIPdu].ComMinimumDelayTime))
+            {
+                if(Com_TriggerIPDUSend(sendIPdusIds[sendIPduIndex]) == E_OK)
+                {
+                    privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod = \
+                            ComTxIPdus[IPdu->ComTxIPdu].ComTxModeTimePeriod;
+                    privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer=0;
+                }
+            }
+            if (privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod > 0)
+            {
+                privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod = \
+                        privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod - COM_TX_TIMEBASE;
             }
         }
     }
 }
 
 /* Updates the signal object identified by SignalId with the signal referenced by the SignalDataPtr parameter */
-uint8 Com_SendSignal( uint16 SignalId, const void* SignalDataPtr )
+uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
 {
-    uint8 counter, signalSizeBytes;
-    uint8* signalBufferPtr, dataBufferPtr;
-    boolean equalityCheck;
-    /* validate signalID */
-    if(!validateSignalID(SignalId) )
-        return E_NOT_OK;
-    /* Get IPDU_Asu of signal ipduHandleId */
-    Com_Asu_IPdu_type *Asu_IPdu = GET_AsuIPdu(ComSignals[SignalId].ComIPduHandleId);
-    switch(ComSignals[SignalId].ComTransferProperty)
-    {
-#if 1
-    //TODO:remove code redundancy using macro like function
-    case TRIGGERED_WITHOUT_REPETITION:
-        TRIGGERED_WITHOUT_REPETITION();
-        Asu_IPdu->Com_Asu_Pdu_changed = FALSE;//TODO:figure out the flag value
-        break;
-#if 0 /* Repetition is not supported as ComTxModeNumberOfRepetitions is not added to the ComTxIPdu_type yet */
-    case TRIGGERED:
-        Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft = \
-        (IPdu->ComTxIPdu.ComTxModeFalse.ComTxMode.ComTxModeNumberOfRepetitions) + 1;
-        Asu_IPdu->Com_Asu_Pdu_changed = FALSE;
-        break;
+    Std_ReturnType result;
+    uint8 byteIndex;
+    /* Get signal of "SignalId" */
+    const ComSignal_type *Signal;
 
-    case TRIGGERED_ON_CHANGE:
-#define Compare_the_Signal_with_local_Buffer    1
-        CompareData(SignalId,signalDataPtr,equalityCheck);
-        if (equalityCheck == 1)
-        {
-            Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft = \
-                    (IPdu->ComTxIPdu.ComTxModeFalse.ComTxMode.ComTxModeNumberOfRepetitions) + 1;
-            Asu_IPdu->Com_Asu_First_Repetition = TRUE;
-            Asu_IPdu->Com_Asu_Pdu_changed = FALSE;
-        }
-        break;
-#endif
-    case TRIGGERED_ON_CHANGE_WITHOUT_REPETITION:
-        CompareData(SignalId,signalDataPtr,equalityCheck);
-        if (equalityCheck == 1)
-        {
-            TRIGGERED_WITHOUT_REPETITION();
-            Asu_IPdu->Com_Asu_First_Repetition = TRUE;
-            Asu_IPdu->Com_Asu_Pdu_changed = FALSE;
-        }
-        break;
-    }
-#endif
-    /* update the Signal buffer with the signal data */
-    Com_WriteSignalDataToSignalBuffer(ComSignals[SignalId].ComHandleId, SignalDataPtr);
-    if(ComSignals[SignalId].ComUpdateBitEnabled)
+    /*Get IPdu of this signal */
+    const ComIPdu_type* IPdu;
+    const privateIPdu_type* privateIPdu;
+    result=E_OK;
+
+    /* validate signalID */
+    if((!validateSignalID(SignalId))&&(/*TODO:send signal?*/) )
     {
-        /* Set the update bit of this signal */
-        SETBIT(ComIPdus[ComSignals[SignalId].ComIPduHandleId].ComIPduDataPtr, ComSignals[SignalId].ComUpdateBitPosition);
+        result=E_NOT_OK;
     }
-    return E_OK;
+    else
+    {
+        /* Get signal of "SignalId" */
+        Signal = GET_Signal(SignalId);
+
+        /*Get IPdu of this signal */
+        IPdu = GET_IPdu(Signal->ComIPduHandleId);
+        privateIPdu=&privateIPdus[Signal->ComIPduHandleId];
+
+        switch(Signal->ComTransferProperty)
+        {
+        case TRIGGERED_WITHOUT_REPETITION:
+            privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft = 1;
+            privateIPdu->updated=TRUE;
+            break;
+#if 0 /*repitition is not supported now*/
+        case TRIGGERED:
+            privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft = \
+            (ComTxIPdus[IPdu->ComTxIPdu].ComTx) + 1;
+            break;
+
+        case TRIGGERED_ON_CHANGE:
+            if (Asu_IPdu->Com_Asu_Pdu_changed)
+            {
+                Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft = \
+                        (IPdu->ComTxIPdu.ComTxModeFalse.ComTxMode.ComTxModeNumberOfRepetitions) + 1;
+                Asu_IPdu->Com_Asu_Pdu_changed = FALSE;
+            }
+            break;
+#endif
+        case TRIGGERED_ON_CHANGE_WITHOUT_REPETITION:
+            switch(Signal->ComSignalType)
+            {
+            case BOOLEAN:
+            case UINT8:
+            case SINT8:
+                if((*((uint8*)(Signal->ComSignalDataPtr)))!=(*((uint8*)SignalDataPtr)))
+                {
+                    privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft = 1;
+                    privateIPdu->updated=TRUE;
+                }
+                break;
+            case UINT16:
+            case SINT16:
+                if((*((uint16*)(Signal->ComSignalDataPtr)))!=(*((uint16*)SignalDataPtr)))
+                {
+                    privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft = 1;
+                    privateIPdu->updated=TRUE;
+                }
+                break;
+            case FLOAT32:
+            case UINT32:
+            case SINT32:
+                if((*((uint32*)(Signal->ComSignalDataPtr)))!=(*((uint32*)SignalDataPtr)))
+                {
+                    privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft = 1;
+                    privateIPdu->updated=TRUE;
+                }
+                break;
+            case FLOAT64:
+            case UINT64:
+            case SINT64:
+                if((*((uint64*)(Signal->ComSignalDataPtr)))!=(*((uint64*)SignalDataPtr)))
+                {
+                    privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft = 1;
+                    privateIPdu->updated=TRUE;
+                }
+                else
+                {
+
+                }
+                break;
+                /*TODO:UINT8_DYN*/
+            case UINT8_N:
+                for(byteIndex=0;byteIndex<Signal->ComSignalLength;byteIndex++)
+                {
+                    if(((uint8*)(Signal->ComSignalDataPtr))[byteIndex]!=((uint8*)SignalDataPtr)[byteIndex])
+                    {
+                        privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft = 1;
+                        privateIPdu->updated=TRUE;
+                        break;
+                    }
+                    else
+                    {
+
+                    }
+                }
+            }
+        }
+
+        /* update the Signal buffer with the signal data */
+        if(TRUE==privateIPdu->updated)
+        {
+            Com_WriteSignalDataToSignalBuffer(Signal->ComHandleId, SignalDataPtr);
+            /*TODO:check if update bit is enabled*/
+            /* Set the update bit of this signal */
+            SETBIT(IPdu->ComIPduDataPtr, Signal->ComUpdateBitPosition);
+        }
+        else
+        {
+
+        }
+    }
+    return result;
 }
 
 /* Copies the data of the signal identified by SignalId to the location specified by SignalDataPtr */
-uint8 Com_ReceiveSignal( uint16 SignalId, void* SignalDataPtr )
+uint8 Com_ReceiveSignal( Com_SignalIdType SignalId, void* SignalDataPtr )
 {
     /* validate signalID */
     if(!validateSignalID(SignalId))
@@ -316,9 +404,8 @@ BufReq_ReturnType Com_CopyTxData( PduIdType id, const PduInfoType* info, const R
 
 }
 
-BufReq_ReturnType Com_CopyRxData( PduIdType Pduid, const PduInfoType* info, PduLengthType* bufferSizePtr )
+BufReq_ReturnType Com_CopyRxData( PduIdType id, const PduInfoType* info, PduLengthType* bufferSizePtr )
 {
-    ComIPdus[Pduid];
     Com_Asu_IPdu_type *Asu_IPdu = GET_AsuIPdu(id);
 
     if( (ComIPdus[Pduid].ComIPduDirection == RECEIVE) &&\
@@ -341,45 +428,52 @@ BufReq_ReturnType Com_CopyRxData( PduIdType Pduid, const PduInfoType* info, PduL
 
 Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId )
 {
-    const ComIPdu_type *IPdu = GET_IPdu(PduId);
-    Com_Asu_IPdu_type *Asu_IPdu = GET_AsuIPdu(PduId);
+    const ComIPdu_type* IPdu;
     PduInfoType PduInfoPackage;
-    uint8 signalID;
+    uint8 signalIndex;
+    Std_ReturnType result;
+    const privateIPdu_type* privateIPdu;
 
-    //TODO: was not here
-    if (Asu_IPdu->PduBufferState.Locked)
+    result=E_OK;
+    privateIPdu=&privateIPdus[PduId];
+    if(privateIPdu->updated)
     {
-        return E_NOT_OK;
+        (privateIPdu->updated=FALSE;
+        Com_PackSignalsToPdu(PduId);
     }
-
-    Com_PackSignalsToPdu(PduId);
+    IPdu = GET_IPdu(PduId);
     PduInfoPackage.SduDataPtr = (uint8 *)IPdu->ComIPduDataPtr;
     PduInfoPackage.SduLength = IPdu->ComIPduSize;
 
-    //TODO:else--> make local std_error type
-    //TODO:check if sent to TPTrigger or transmit.
-    if (PduR_ComTransmit(com_pdur[IPdu->ComIPduHandleId], &PduInfoPackage) == E_OK)
+    if (privateIPdu->locked)
     {
-        //TODO: Preprocessor checks if update bit is enabled
-        // Clear all update bits for the contained signals
-        if(IPdu->ComTxIPdu.ComTxIPduClearUpdateBit == TRANSMIT)
-        {
-            for ( signalID = 0; (IPdu->ComIPduSignalRef[signalID] != NULL_PTR); signalID++)
-            {
-                //TODO:check this signal update bit is enabled
-                CLEARBIT(IPdu->ComIPduDataPtr, IPdu->ComIPduSignalRef[signalID]->ComUpdateBitPosition);
-            }
-        }
-
+        result=E_NOT_OK;
     }
     else
     {
-        return E_NOT_OK;
+        privateIPdu->locked=TRUE;
+        if (PduR_ComTransmit(com_pdur[PduId], &PduInfoPackage) != E_OK)
+        {
+            result=E_NOT_OK;
+        }
+        else
+        {
+
+        }
+        if((ComTxIPdus[IPdu->ComTxIPdu].ComTxIPduClearUpdateBit == TRIGGER_TRANSMIT)||\
+                ((ComTxIPdus[IPdu->ComTxIPdu].ComTxIPduClearUpdateBit == TRANSMIT)&&(result==E_OK)))
+        {
+            for ( signalIndex = 0 ; signalIndex < IPdu->ComIPduNumOfSignals ; signalIndex++ )
+            {
+                if(IPdu->ComIPduSignalRef[signalIndex].ComUpdateBitEnabled!=FALSE)/*Update bit is enabled*/
+                {
+                    CLEARBIT(IPdu->ComIPduDataPtr, IPdu->ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
+                }
+            }
+        }
     }
-    return E_OK;
+    return result;
 }
-
-
 
 void Com_RxIndication(PduIdType ComRxPduId, const PduInfoType* PduInfoPtr)
 {
@@ -424,9 +518,10 @@ BufReq_ReturnType Com_StartOfReception(PduIdType PduId,const PduInfoType *info,P
         }
         else
         {
-            //TODO: if there is a det
-            //TODO: if there is no det function -> discard the data frame
-            //TODO: return BUFREQ_E_NOT_OK
+            /*TODO: if there is a det
+              TODO: if there is no det function -> discard the data frame
+              TODO: return BUFREQ_E_NOT_OK
+              TODO: local variable for return*/
             return BUFREQ_E_BUSY;
         }
         return BUFREQ_OK;
@@ -435,7 +530,7 @@ BufReq_ReturnType Com_StartOfReception(PduIdType PduId,const PduInfoType *info,P
 }
 
 
-//TODO: what we must do
+/*TODO: what we must do*/
 void Com_TpRxIndication(PduIdType id,Std_ReturnType Result)
 {
     const ComIPdu_type *ipdu=GET_IPdu(id);
@@ -448,7 +543,7 @@ void Com_TpRxIndication(PduIdType id,Std_ReturnType Result)
             UNLOCKBUFFER(&AsuIPdu->PduBufferState);
 
             // In deferred mode, buffers are unlocked in mainfunction
-            Com_PduUnpacking(id);
+            Com_RxProcessSignals(id);
         }
     }
     else
@@ -475,4 +570,31 @@ void Com_TpTxConfirmation(PduIdType PduId, Std_ReturnType Result)
             CLEARBIT(ipdu->ComIPduDataPtr,signal->ComUpdateBitPosition);
         }
     }
+}
+
+void Com_TxConfirmation( PduIdType TxPduId, Std_ReturnType result )
+{
+    uint8 signalIndex;
+    if((result==E_OK)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
+    {
+        for ( signalIndex = 0 ; signalIndex < ComIPdus[TxPduId].ComIPduNumOfSignals ; signalIndex++ )
+        {
+            if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitEnabled!=FALSE)/*Update bit is enabled*/
+            {
+                CLEARBIT(IPdu->ComIPduDataPtr, IPdu->ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
+            }
+            if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
+            {
+                if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
+                {
+                    ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification();
+                }
+            }
+            else
+            {
+                /*TODO:same as mostafa did, double buffer*/
+            }
+        }
+    }
+    privateIPdu[TxPduId].locked=FALSE;
 }
