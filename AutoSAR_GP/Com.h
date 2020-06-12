@@ -139,10 +139,10 @@ typedef struct
 /****************************ComTxIPdu_type*******************************/
 typedef struct
 {
-	#if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
+#if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
 	/* Minimum delay between successive transmissions of the IPdu */
 	float32 			ComMinimumDelayTime;
-	#endif
+#endif
 	/* epetition period in seconds of the periodic transmission requests
        in case ComTxModeMode is configured to PERIODIC or MIXED.*/
 	uint16 				ComTxModeTimePeriod;
