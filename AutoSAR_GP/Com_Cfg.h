@@ -45,10 +45,10 @@
 #define COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION		TRUE
 
 /* The period between successive calls to Com_MainFunctionRx in ms */
-#define ComRxTimeBase 								100
+#define COM_RX_TIME_BASE 								((float32)0.1)
 
 /* The period between successive calls to Com_MainFunctionTx in ms */
-#define ComTxTimeBase								200
+#define COM_TX_TIME_BASE 								((float32)0.2)
 
 #endif
 

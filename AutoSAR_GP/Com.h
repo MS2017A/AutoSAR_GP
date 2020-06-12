@@ -29,7 +29,7 @@
  *                            COM_Config                                *
  ************************************************************************/
  
-/***************************ComTxModeMode_type***************************/
+/************************ComTransferProperty_type*************************/
 ComTxModeMode_type
 #define PENDING										0
 #define TRIGGERED									1
@@ -37,7 +37,7 @@ ComTxModeMode_type
 #define TRIGGERED_ON_CHANGE_WITHOUT_REPETITION		3
 #define TRIGGERED_WITHOUT_REPETITION				4
 
-/************************ComTransferProperty_type************************/
+/***************************ComTxModeMode_type***************************/
 #define DIRECT										0
 #define MIXED										1
 #define NONE										2
@@ -58,7 +58,7 @@ ComTxModeMode_type
 /*********************ComTxIPduClearUpdateBit_type***********************/
 #define CONFIRMATION								0
 #define TRANSMIT									1
-#define TRIGGERTRANSMIT								2
+#define TRIGGER_TRANSMIT							2
 
 /****************************ComSignalType_type**************************/
 #define BOOLEAN										0
@@ -78,7 +78,8 @@ ComTxModeMode_type
 /************************************************************************
  *                       User-Defined Types                             *
  ************************************************************************/
-  /****************************ComSignal_type*******************************/
+
+/****************************ComSignal_type*******************************/
 typedef struct
 {
 	/*  This parameter refers to the position in the I-PDU and not in the shadow buffer.*/
@@ -87,6 +88,10 @@ typedef struct
         If this attribute is omitted then there is no update-bit. This setting must be consistently on sender and on receiver side.
         Range: 0..63 for CAN and LIN, 0..511 for CAN FD, 0..2031 for FlexRay, 0..4294967295 for TP.*/
     uint32 				ComUpdateBitPosition;
+    /*The supported maximum length is restricted by the used transportation system. For non TP-PDUs the maximum size of a PDU,
+     * and therefore also of any included signal, is limited by the concrete bus characteristic. For example, the limit is 8 bytes
+     * for CAN and LIN, 64 bytes for CAN FD and 254 for FlexRay.*/
+    uint32              ComSignalLength;
 	/* Size in bits, for integer signal types. For ComSignalType UINT8_N and UINT8_DYN
        the size shall be configured by ComSignalLength. For ComSignalTypes FLOAT32 and FLOAT64 the size is already defined by the signal type 
 	   and therefore may be omitted.*/
@@ -104,13 +109,15 @@ typedef struct
 	void* 				ComSignalDataPtr;
 	/* notification function. */
 	void (*ComNotification) (void);
+    /* To check whether update bit is configured or not.*/
+    boolean             ComUpdateBitEnabled;
 }ComSignal_type;
 
  /****************************ComIPdu_type*******************************/
  typedef struct
  {
 	/* Reference to the actual pdu data Buffer */
-    void *const 		ComIPduDataPtr;  
+    void *       		ComIPduDataPtr;
 	/* Pointer to the first signal in the IPdu */
 	ComSignal_type*		ComIPduSignalRef;
 	/* The numerical value used as the ID of this I-PDU */
@@ -126,13 +133,13 @@ typedef struct
 	/* Normal or Tp */
     uint8 				ComIPduType;
 	/* Number of Signal */
-	uint8				ComIPduNumOfSignal;
+	uint8				ComIPduNumOfSignals;
  }ComIPdu_type;
 
 /****************************ComTxIPdu_type*******************************/
 typedef struct
 {
-	#if ComEnableMDTForCyclicTransmission
+	#if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
 	/* Minimum delay between successive transmissions of the IPdu */
 	float32 			ComMinimumDelayTime;
 	#endif

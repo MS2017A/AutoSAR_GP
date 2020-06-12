@@ -6,8 +6,13 @@
 boolean validateSignalID (Com_SignalIdType SignalId)
 {
 	if(SignalId<COM_NUM_OF_SIGNAL)
+	{
 		return TRUE;
-	return FALSE;
+	}
+	else
+	{
+	    return FALSE;
+	}
 }
 
 

@@ -144,7 +144,7 @@ uint8 ComIPduBuffer_2[3];
 //uint8 ComIPduBuffer_3[8];
 
 /* Com Ipdu */
-const ComIPdu_type ComIPdu[] = 
+const ComIPdu_type ComIPdus[] =
 {
     { // CanDB_Message_1
         .ComIPduDirection = SEND ,

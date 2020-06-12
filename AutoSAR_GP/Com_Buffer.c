@@ -1,167 +1,104 @@
-
 #include "Std_Types.h"
-#include "Com_Asu_Types.h"
-#include "Com_Types.h"
+#include "Com.h"
 #include "Com_helper.h"
-#include "Com_Cfg.h"
 #include "Com_Buffer.h"
 
 
-extern const ComConfig_type * ComConfig;
+static void Com_WriteSignalDataToPduBuffer(const ComSignal_type* signal);
 
-/* Com_Asu_Config declaration*/
-extern Com_Asu_Config_type ComAsuConfiguration;
-static Com_Asu_Config_type * Com_Asu_Config = &ComAsuConfiguration;
-
+extern const ComIPdu_type ComIPdus[];
 
 void Com_PackSignalsToPdu(uint16 ComIPuId)
 {
-	uint8 signalID = 0;
-	const ComIPdu_type *IPdu = GET_IPdu(ComIPuId);
-	for ( signalID = 0; (IPdu->ComIPduSignalRef[signalID] != NULL_PTR); signalID++)
-	{
+    uint8 signalIndex;
+    const ComIPdu_type *IPdu;
 
-		Com_WriteSignalDataToPduBuffer(IPdu->ComIPduSignalRef[signalID]->ComHandleId, IPdu->ComIPduSignalRef[signalID]->ComSignalDataPtr);
-	}
+    IPdu = GET_IPdu(ComIPuId);
+    for( signalIndex = 0 ; signalIndex < IPdu->ComIPduNumOfSignals ; signalIndex++ )
+    {
+        Com_WriteSignalDataToPduBuffer(IPdu->ComIPduSignalRef[signalIndex]);
+    }
 }
 
 
 void Com_UnPackSignalsFromPdu(uint16 ComIPuId)
 {
-	uint8 signalID = 0;
-//	const ComSignal_type * signal = NULL_PTR;
-//	const Com_Asu_Signal_type * Asu_Signal = NULL_PTR;
-	const ComIPdu_type *IPdu = GET_IPdu(ComIPuId);
+    uint8 signalID = 0;
+    //	const ComSignal_type * signal = NULL_PTR;
+    //	const Com_Asu_Signal_type * Asu_Signal = NULL_PTR;
+    const ComIPdu_type *IPdu = GET_IPdu(ComIPuId);
 
-	for ( signalID = 0; (IPdu->ComIPduSignalRef[signalID] != NULL_PTR); signalID++)
-	{
-//		signal = IPdu->ComIPduSignalRef[signalID];
-//		Asu_Signal = GET_AsuSignal(signal->ComHandleId);
-//
-//		if(Asu_Signal->ComSignalUpdated)
-//		{
-			Com_ReadSignalDataFromPduBuffer(IPdu->ComIPduSignalRef[signalID]->ComHandleId,IPdu->ComIPduSignalRef[signalID]->ComSignalDataPtr);
-//		}
-	}
+    for ( signalID = 0; (IPdu->ComIPduSignalRef[signalID] != NULL_PTR); signalID++)
+    {
+        //		signal = IPdu->ComIPduSignalRef[signalID];
+        //		Asu_Signal = GET_AsuSignal(signal->ComHandleId);
+        //
+        //		if(Asu_Signal->ComSignalUpdated)
+        //		{
+        Com_ReadSignalDataFromPduBuffer(IPdu->ComIPduSignalRef[signalID]->ComHandleId,IPdu->ComIPduSignalRef[signalID]->ComSignalDataPtr);
+        //		}
+    }
 }
 
 
-void Com_WriteSignalDataToPduBuffer(const uint16 signalId, const void *signalData)
+void Com_WriteSignalDataToPduBuffer(const ComSignal_type* signal)
 {
-	uint32 bitPosition;
-	uint8 data;
-	uint8 mask;
-	uint8 pduMask;
-	uint8 signalMask;
-	uint8 *pduBufferBytes = NULL_PTR;
-	uint8 *pduBeforChange = NULL_PTR;
-	uint8 *dataBytes = NULL_PTR;
-	uint8 signalLength;
-	uint8 BitOffsetInByte;
-	uint8 pduStartByte;
-	uint8 i;
-	Com_Asu_IPdu_type *Asu_IPdu = NULL_PTR;
+    uint8*  pdu;
+    uint64  mask;
+    uint8   position;
+    uint8   length;
 
+    pdu=ComIPdus[signal->ComIPduHandleId].ComIPduDataPtr;
+    if(signal->ComSignalType==UINT8_N)/*TODO:check UINT8_DYN*/
+    {
+        memcpy(pdu+(signal->ComBitPosition/8), signal->ComSignalDataPtr,signal->ComSignalLength);
+    }
+    else
+    {
+        mask=0xffffffffffffffff;
+        position=signal->ComBitPosition;
+        length=signal->ComSignalLength;
+        mask=mask<<(64 - (position+length));
+        mask=mask>>(64 - (length));
+        mask=mask<<position;
+        (*((uint64*)pdu))&=~mask;
+        (*((uint64*)pdu))|=((*((uint64*)signal->ComSignalDataPtr))<<position)&mask;
+    }
 
-
-	const ComSignal_type * Signal =  GET_Signal(signalId);
-	// Get PDU
-	const ComIPdu_type *IPdu = GET_IPdu(Signal->ComIPduHandleId);
-	void * const pduBuffer = IPdu->ComIPduDataPtr;
-
-	bitPosition = Signal->ComBitPosition;
-	BitOffsetInByte = bitPosition%8;
-	pduStartByte = bitPosition / 8;
-	pduBufferBytes = (uint8 *)pduBuffer;
-	dataBytes = (uint8 *) signalData;
-	signalLength = Signal->ComBitSize/8;
-	pduBeforChange = pduBufferBytes;
-
-	pduBufferBytes += pduStartByte;
-	uint8 x;
-	for(i = 0; i<=signalLength; i++)
-	{
-	    pduMask = 255;
-	    signalMask = 255;
-        if( i == 0)
-        {
-            pduMask = pduMask >> (8 - BitOffsetInByte);
-            signalMask = signalMask >> BitOffsetInByte;
-            *pduBufferBytes = (* pduBufferBytes) & pduMask;
-            data = (* dataBytes) & signalMask;
-            data = data << BitOffsetInByte;
-            *pduBufferBytes = (* pduBufferBytes) | data;
-            x= *pduBufferBytes;
-            pduBufferBytes ++;
-        }
-        else if(i==signalLength)
-        {
-            pduMask = pduMask << BitOffsetInByte;
-            signalMask = signalMask << (8 - BitOffsetInByte);
-            *pduBufferBytes = (* pduBufferBytes) & pduMask;
-            data = (* dataBytes) & signalMask;
-            data = data >> (8 - BitOffsetInByte);
-            *pduBufferBytes = (* pduBufferBytes) | data;
-            x= *pduBufferBytes;
-        }
-        else
-        {
-            pduMask = pduMask << BitOffsetInByte;
-            signalMask = signalMask << (8 - BitOffsetInByte);
-            *pduBufferBytes = (* pduBufferBytes) & pduMask;
-            data = (* dataBytes) & signalMask;
-            data = data >> (8 - BitOffsetInByte);
-            *pduBufferBytes = (* pduBufferBytes) | data;
-
-            dataBytes++;
-
-            pduMask = 255;
-            signalMask = 255;
-            pduMask = pduMask >> (8 - BitOffsetInByte);
-            signalMask = signalMask >> BitOffsetInByte;
-            *pduBufferBytes = (* pduBufferBytes) & pduMask;
-            data = (* dataBytes) & signalMask;
-            data = data << BitOffsetInByte;
-            *pduBufferBytes = (* pduBufferBytes) | data;
-            x= *pduBufferBytes;
-            pduBufferBytes ++;
-
-        }
-	}
 }
 
 
 
 void Com_ReadSignalDataFromPduBuffer(const uint16 signalId, void *signalData)
 {
-	uint8 signalLength;
-	uint8 data;
-	uint8 BitOffsetInByte;
-	uint32 bitPosition;
-	uint8 pduStartByte;
-	uint8 pduMask;
-	uint8 * dataBytes = NULL_PTR;
-	uint8 i;
-	const uint8 *pduBufferBytes = NULL_PTR;
-	uint8 * signalDataBytes = NULL_PTR;
+    uint8 signalLength;
+    uint8 data;
+    uint8 BitOffsetInByte;
+    uint32 bitPosition;
+    uint8 pduStartByte;
+    uint8 pduMask;
+    uint8 * dataBytes = NULL_PTR;
+    uint8 i;
+    const uint8 *pduBufferBytes = NULL_PTR;
+    uint8 * signalDataBytes = NULL_PTR;
 
-	const ComSignal_type * Signal = GET_Signal(signalId);
-	const ComIPdu_type *IPdu = GET_IPdu(Signal->ComIPduHandleId);
-	const void * pduBuffer = IPdu->ComIPduDataPtr;
+    const ComSignal_type * Signal = GET_Signal(signalId);
+    const ComIPdu_type *IPdu = GET_IPdu(Signal->ComIPduHandleId);
+    const void * pduBuffer = IPdu->ComIPduDataPtr;
 
-	bitPosition = Signal->ComBitPosition;
-	signalLength = Signal->ComBitSize / 8;
-	BitOffsetInByte = bitPosition % 8;
-	pduStartByte = bitPosition / 8;
+    bitPosition = Signal->ComBitPosition;
+    signalLength = Signal->ComBitSize / 8;
+    BitOffsetInByte = bitPosition % 8;
+    pduStartByte = bitPosition / 8;
 
-	dataBytes = (uint8 *) signalData;
-	memset(signalData, 0, signalLength);
-	pduBufferBytes = (const uint8 *)pduBuffer;
-	pduBufferBytes += pduStartByte;
+    dataBytes = (uint8 *) signalData;
+    memset(signalData, 0, signalLength);
+    pduBufferBytes = (const uint8 *)pduBuffer;
+    pduBufferBytes += pduStartByte;
 
 
-	uint8 x;
-	for(i = 0; i<=signalLength; i++)
+    uint8 x;
+    for(i = 0; i<=signalLength; i++)
     {
         pduMask = 255;
         if( i == 0)
@@ -206,15 +143,32 @@ void Com_ReadSignalDataFromPduBuffer(const uint16 signalId, void *signalData)
 
 void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * signalData)
 {
-	const ComSignal_type * Signal =  GET_Signal(signalId);
-	memcpy(Signal->ComSignalDataPtr, signalData, Signal->ComBitSize/8);
+    const ComSignal_type * Signal =  GET_Signal(signalId);
+    uint8 mod;
+    if(Signal->ComSignalType==UINT8_N)
+    {
+        /*TODO:UINT8_DYN*/
+        memcpy(Signal->ComSignalDataPtr, signalData, Signal->ComSignalLength);
+    }
+    else
+    {
+        if(Signal->ComBitSize%8)
+        {
+            mod=1;
+        }
+        else
+        {
+            mod=0;
+        }
+        memcpy(Signal->ComSignalDataPtr, signalData, Signal->ComBitSize/8+mod);
+    }
 }
 
 
 void Com_ReadSignalDataFromSignalBuffer (const uint16 signalId,  void * signalData)
 {
-	const ComSignal_type * Signal =  GET_Signal(signalId);
-	memcpy(signalData, Signal->ComSignalDataPtr, Signal->ComBitSize/8);
+    const ComSignal_type * Signal =  GET_Signal(signalId);
+    memcpy(signalData, Signal->ComSignalDataPtr, Signal->ComBitSize/8);
 }
 
 

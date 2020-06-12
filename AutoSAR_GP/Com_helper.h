@@ -25,11 +25,11 @@
 
 
 #define GET_Signal(SignalId) \
-	(&(ComConfig->ComSignal[SignalId]))
+	(&ComSignals[SignalId])
 
 
 #define GET_IPdu(IPduId) \
-	(&(ComConfig->ComIPdu[IPduId]))
+	(&ComIPdus[IPduId])
 
 
 #define GET_AsuIPdu(IPduId) \
@@ -42,7 +42,7 @@ boolean validateSignalID (Com_SignalIdType SignalId);
 
 #define timerDec(timer) \
 	if (timer > 0) { \
-		timer = timer - ComConfig->ComTimeBase.ComTxTimeBase; \
+		timer = timer - COM_TX_TIME_BASE; \
 	}
 
 uint64 power(uint8 x,uint8 y);
