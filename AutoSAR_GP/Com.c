@@ -51,12 +51,12 @@ typedef struct privateIPdu_type
     boolean locked;
 }privateIPdu_type;
 
-typedef struct privateTxTPdu_type
+typedef struct privateTxIPdu_type
 {
     float32 remainingTimePeriod;
     float32 minimumDelayTimer;
     uint8   numberOfRepetitionsLeft;
-}privateTxTPdu_type;
+}privateTxIPdu_type;
 
 typedef void (*notificationType)(void);
 
@@ -70,7 +70,7 @@ extern const ComTxIPdu_type ComTxIPdus[];
 
 /* Global variables*/
 privateIPdu_type privateIPdus[COM_NUM_OF_IPDU];
-privateTxTPdu_type privateTxIPdus[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
+privateTxIPdu_type privateTxIPdus[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
 const uint16 numberOfSendIPdus=sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type);
 uint16 sendIPdusIds[sizeof(ComTxIPdus)/sizeof(ComTxIPdu_type)];
 notificationType pendingNotifications[COM_NUM_OF_SIGNAL];
@@ -438,7 +438,7 @@ Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId )
     privateIPdu=&privateIPdus[PduId];
     if(privateIPdu->updated)
     {
-        (privateIPdu->updated=FALSE;
+        privateIPdu->updated=FALSE;
         Com_PackSignalsToPdu(PduId);
     }
     IPdu = GET_IPdu(PduId);
