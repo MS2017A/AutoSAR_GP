@@ -23,11 +23,11 @@
 // get bit value
 #define CHECKBIT(source,bit)	( *( (uint8 *)source  + (bit / 8) ) &  (uint8)(1u << (bit % 8)) )
 
-
+//TODO: remove
 #define GET_Signal(SignalId) \
 	(&(ComConfig->ComSignal[SignalId]))
 
-
+//TODO: remove
 #define GET_IPdu(IPduId) \
 	(&(ComConfig->ComIPdu[IPduId]))
 

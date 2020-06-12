@@ -23,7 +23,7 @@ typedef struct {
 
 
 typedef struct {
-	sint32  ComTxIPduNumberOfRepetitionsLeft;
+	sint32 ComTxIPduNumberOfRepetitionsLeft;
 	sint32 ComTxModeRepetitionPeriodTimer;
 	sint32 ComTxModeTimePeriodTimer;
 	sint32 ComTxIPduMinimumDelayTimer;

@@ -11,8 +11,8 @@
  ****************************************************/
 #ifndef COM_CFG_H_
 #define COM_CFG_H_
-#define COM_NUM_OF_IPDU 2
-#define COM_NUM_OF_SIGNAL 4
+#define COM_NUM_OF_IPDU                 2
+#define COM_NUM_OF_SIGNAL               4
 
 
 /* signal definition */
@@ -44,11 +44,11 @@
 */
 #define COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION		TRUE
 
-/* The period between successive calls to Com_MainFunctionRx in ms */
-#define ComRxTimeBase 								100
+/* The period between successive calls to Com_MainFunctionRx in Sec */
+#define COM_RX_TIMEBASE 							((float32)0.1)
 
-/* The period between successive calls to Com_MainFunctionTx in ms */
-#define ComTxTimeBase								200
+/* The period between successive calls to Com_MainFunctionTx in Sec */
+#define COM_TX_TIMEBASE								((float32)0.2)
 
 #endif
 

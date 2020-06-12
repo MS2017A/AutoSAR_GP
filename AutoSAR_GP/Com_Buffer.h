@@ -18,9 +18,9 @@
 #define LOCKBUFFER(IPdubufStateptr) \
 		*IPdubufStateptr.Locked=TRUE;
 
-void Com_PackSignalsToPdu(uint16 ComIPuId);
+void Com_PackSignalsToPdu(PduIdType ComIPuId);
 
-void Com_UnPackSignalsFromPdu(uint16 ComIPuId);
+void Com_PduUnpacking(PduIdType ComRxPduId);
 
 void Com_WriteSignalDataToPduBuffer(const uint16 signalId, const void *signalData);
 

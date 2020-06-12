@@ -1,5 +1,5 @@
 
- /*******************************************************
+/*******************************************************
  *
  * File Name: Com.h
  *
@@ -10,7 +10,7 @@
  * Version	: 01	
  * 
  ********************************************************/
- 
+
 #ifndef COM_H_
 #define COM_H_
 
@@ -28,7 +28,7 @@
 /************************************************************************
  *                            COM_Config                                *
  ************************************************************************/
- 
+
 /***************************ComTxModeMode_type***************************/
 ComTxModeMode_type
 #define PENDING										0
@@ -42,7 +42,7 @@ ComTxModeMode_type
 #define MIXED										1
 #define NONE										2
 #define PERIODIC									3
-	
+
 /*************************ComIPduDirection_type**************************/
 #define RECEIVE										0
 #define SEND										1
@@ -78,88 +78,97 @@ ComTxModeMode_type
 /************************************************************************
  *                       User-Defined Types                             *
  ************************************************************************/
-  /****************************ComSignal_type*******************************/
+/****************************ComSignal_type*******************************/
 typedef struct
 {
-	/*  This parameter refers to the position in the I-PDU and not in the shadow buffer.*/
+    /*  This parameter refers to the position in the I-PDU and not in the shadow buffer.*/
     uint32 				ComBitPosition;
     /*  Bit position of update-bit inside I-PDU.
         If this attribute is omitted then there is no update-bit. This setting must be consistently on sender and on receiver side.
         Range: 0..63 for CAN and LIN, 0..511 for CAN FD, 0..2031 for FlexRay, 0..4294967295 for TP.*/
     uint32 				ComUpdateBitPosition;
-	/* Size in bits, for integer signal types. For ComSignalType UINT8_N and UINT8_DYN
+    /* Size in bits, for integer signal types. For ComSignalType UINT8_N and UINT8_DYN
        the size shall be configured by ComSignalLength. For ComSignalTypes FLOAT32 and FLOAT64 the size is already defined by the signal type 
 	   and therefore may be omitted.*/
     uint8 				ComBitSize;
-	/*  The AUTOSAR type of the signal. Whether or not the signal is signed or unsigned can be found by examining the value of this attribute.
+    /*  The AUTOSAR type of the signal. Whether or not the signal is signed or unsigned can be found by examining the value of this attribute.
         This type could also be used to reserved appropriate storage in AUTOSAR COM.*/
     uint8 				ComSignalType;
-	/*  Defines if a write access to this signal can trigger the transmission of the correspon-ding I-PDU.
+    /*  Defines if a write access to this signal can trigger the transmission of the correspon-ding I-PDU.
      *  If the I-PDU is triggered, depends also on the transmission mode of the corresponding I-PDU.*/
     uint8 				ComTransferProperty;
-	/* IPDU id of the IPDU that this signal belongs to.
-	 * This is initialized by Com_Init() and should not be configured.*/
-	PduIdType 			ComIPduHandleId; 
-	/* Pointer to the signal Data Buffer */
-	void* 				ComSignalDataPtr;
-	/* notification function. */
-	void (*ComNotification) (void);
+    /* Defines if the update bit feature is enabled for the signal */
+    boolean             ComUpdateBitEnabled;
+    /* IPDU id of the IPDU that this signal belongs to.
+     * This is initialized by Com_Init() and should not be configured.*/
+    PduIdType 			ComIPduHandleId;
+    /* Pointer to the signal Data Buffer */
+    void* 				ComSignalDataPtr;
+    /* notification function. */
+    void (*ComNotification) (void);
 }ComSignal_type;
 
- /****************************ComIPdu_type*******************************/
- typedef struct
- {
-	/* Reference to the actual pdu data Buffer */
+/****************************ComIPdu_type*******************************/
+typedef struct
+{
+    /* Reference to the actual pdu data Buffer */
     void *const 		ComIPduDataPtr;  
-	/* Pointer to the first signal in the IPdu */
-	ComSignal_type*		ComIPduSignalRef;
-	/* The numerical value used as the ID of this I-PDU */
+    /* Pointer to the first signal in the IPdu */
+    ComSignal_type*		ComIPduSignalRef;
+    /* The numerical value used as the ID of this I-PDU */
     PduIdType 			ComIPduHandleId ;
-	/* Index to the Ipdu of type Send */
-	uint16				ComTxIPdu;
-	/* size of the Pdu in bytes */
-	uint8 				ComIPduSize; 
-	/* sent or received */
+    /* Index to the Ipdu of type Send */
+    uint16				ComTxIPdu;
+    /* size of the Pdu in bytes */
+    uint8 				ComIPduSize;
+    /* sent or received */
     uint8 				ComIPduDirection;
-	/* Immidiate or deferred */
-	uint8 				ComIPduSignalProcessing;
-	/* Normal or Tp */
+    /* Immidiate or deferred */
+    uint8 				ComIPduSignalProcessing;
+    /* Normal or Tp */
     uint8 				ComIPduType;
-	/* Number of Signal */
-	uint8				ComIPduNumOfSignal;
- }ComIPdu_type;
+    /* Number of Signal */
+    uint8				ComIPduNumOfSignal;
+}ComIPdu_type;
 
 /****************************ComTxIPdu_type*******************************/
 typedef struct
 {
-	#if ComEnableMDTForCyclicTransmission
-	/* Minimum delay between successive transmissions of the IPdu */
-	float32 			ComMinimumDelayTime;
-	#endif
-	/* epetition period in seconds of the periodic transmission requests
+#if ComEnableMDTForCyclicTransmission
+    /* Minimum delay between successive transmissions of the IPdu */
+    float32 			ComMinimumDelayTime;
+#endif
+    /* epetition period in seconds of the periodic transmission requests
        in case ComTxModeMode is configured to PERIODIC or MIXED.*/
-	uint16 				ComTxModeTimePeriod;
-	/* Cofirmation, Transmit or Trigger Transmit */
-	uint8 				ComTxIPduClearUpdateBit;
-	/* COM will fill unused areas within an IPdu with this bit patter */
-	uint8 				ComTxIPduUnusedAreasDefault;
-	/* DIRECT, MIXED, NONE or PERIODIC */
-	uint8 				ComTxModeMode;
-	#if 0
-	/* number of repetitions for the transmission mode DIRECT and
+    uint16 				ComTxModeTimePeriod;
+    /* Cofirmation, Transmit or Trigger Transmit */
+    uint8 				ComTxIPduClearUpdateBit;
+    /* COM will fill unused areas within an IPdu with this bit patter */
+    uint8 				ComTxIPduUnusedAreasDefault;
+    /* DIRECT, MIXED, NONE or PERIODIC */
+    uint8 				ComTxModeMode;
+#if 0
+    /* number of repetitions for the transmission mode DIRECT and
 		the event driven part of transmission mode MIXED.*/
-	uint8 				ComTxModeNumberOfRepetitions;
-	/* repetition period in seconds of the multiple transmissions in
+    uint8 				ComTxModeNumberOfRepetitions;
+    /* repetition period in seconds of the multiple transmissions in
 	   case ComTxModeNumberOfRepetitions is configured greater than or
 	   equal to 1 and ComTxModeMode is configured to DIRECT or MIXED.*/
-	uint16 				ComTxModeRepetitionPeriod;
-	/* period in seconds between the start of the I-PDU by
+    uint16 				ComTxModeRepetitionPeriod;
+    /* period in seconds between the start of the I-PDU by
 	   Com_IpduGroupStart and the first transmission request in case
 	   ComTxModeMode is configured to PERIODIC or MIXED.*/
-	uint16 				ComTxModeTimeOffset;
-	#endif
-	
+    uint16 				ComTxModeTimeOffset;
+#endif
 }ComTxIPdu_type;
+
+
+/****************************ComConfig_type********************************/
+/* Empty structure */
+typedef struct
+{
+
+}ComConfig_type;
 
 /************************************************************************
  *                      Functions Prototypes                            *
@@ -167,7 +176,7 @@ typedef struct
 
 /*initializes internal and external interfaces and variables of the COM module */
 void Com_Init( const ComConfig_type* config);
- 
+
 /* Processing of the AUTOSAR COM module's receive activities (PDU To Signal) */
 void Com_MainFunctionRx(void);
 
@@ -185,7 +194,7 @@ Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId );
 
 /* Cbk function, indation from the PduRouter of recieving Pdu */
 //process signals if the signal processing mode is IMMEDIATE -> notify the signal callback , else -> mark signal as updated
-static void Com_RxProcessSignals(PduIdType ComRxPduId);
+static void Com_PduUnpacking(PduIdType ComRxPduId);
 
 #endif
 

@@ -28,6 +28,7 @@ const ComSignal_type ComSignals[] =
     {	//signal0
     	.ComBitPosition= 0,
         .ComUpdateBitPosition= 8 ,
+        .ComUpdateBitEnabled=TRUE,
         .ComBitSize= 8,
         .ComSignalType = BOOLEAN,
         .ComTransferProperty = TRIGGERED_ON_CHANGE,
@@ -38,6 +39,7 @@ const ComSignal_type ComSignals[] =
     {	//signal1
         .ComBitPosition= 9,
         .ComUpdateBitPosition= 17,
+        .ComUpdateBitEnabled=TRUE,
         .ComBitSize= 8,
         .ComSignalType = BOOLEAN,
         .ComTransferProperty = TRIGGERED_ON_CHANGE,
@@ -48,6 +50,7 @@ const ComSignal_type ComSignals[] =
     {	//signal2
         .ComBitPosition= 0,
         .ComUpdateBitPosition= 8 ,
+        .ComUpdateBitEnabled=TRUE,
         .ComBitSize= 8,
         .ComSignalType = UINT8,
         .ComTransferProperty = TRIGGERED_ON_CHANGE,
@@ -58,6 +61,7 @@ const ComSignal_type ComSignals[] =
     {   //signal3
         .ComBitPosition= 9,
         .ComUpdateBitPosition= 17 ,
+        .ComUpdateBitEnabled=TRUE,
         .ComBitSize= 8,
         .ComSignalType = UINT8,
         .ComTransferProperty = TRIGGERED_ON_CHANGE,
@@ -144,7 +148,7 @@ uint8 ComIPduBuffer_2[3];
 //uint8 ComIPduBuffer_3[8];
 
 /* Com Ipdu */
-const ComIPdu_type ComIPdu[] = 
+const ComIPdu_type ComIPdus[] =
 {
     { // CanDB_Message_1
         .ComIPduDirection = SEND ,
