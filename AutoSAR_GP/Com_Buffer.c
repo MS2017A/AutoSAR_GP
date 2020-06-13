@@ -4,7 +4,7 @@
 #include "Com_Buffer.h"
 
 
-static void Com_WriteSignalDataToPduBuffer(const ComSignal_type* signal);
+static void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal);
 
 extern const ComIPdu_type   ComIPdus[];
 extern const ComSignal_type ComSignals[];
@@ -17,20 +17,40 @@ void Com_PackSignalsToPdu(uint16 ComIPuId)
     IPdu = GET_IPdu(ComIPuId);
     for( signalIndex = 0 ; signalIndex < IPdu->ComIPduNumOfSignals ; signalIndex++ )
     {
-        Com_WriteSignalDataToPduBuffer(IPdu->ComIPduSignalRef[signalIndex]);
+        Com_WriteSignalDataToPduBuffer(&IPdu->ComIPduSignalRef[signalIndex]);
     }
 }
 
-void Com_PduUnpacking(PduIdType ComIPuId)
+void Com_PduUnpacking(PduIdType ComRxPduId)
 {
     uint8 signalIndex;
-    for ( signalIndex = 0; (ComIPdus[ComIPuId].ComIPduNumOfSignal > signalIndex); signalIndex++)
+    for ( signalIndex = 0; (ComIPdus[ComRxPduId].ComIPduNumOfSignals > signalIndex); signalIndex++)
     {
         if((ComIPdus[ComRxPduId].ComIPduSignalRef)[signalIndex].ComUpdateBitEnabled)
         {
             if (CHECKBIT(ComIPdus[ComRxPduId].ComIPduDataPtr, (ComIPdus[ComRxPduId].ComIPduSignalRef)[signalIndex].ComUpdateBitPosition))
             {
-                Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalRef)[signalIndex]);
+                Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalRef[signalIndex]);
+                if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
+                {
+                    ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification();
+                }
+                else
+                {
+                    /* Following MISRA rules */
+                }
+            }
+            else
+            {
+
+            }
+        }
+        else
+        {
+            Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalRef[signalIndex]);
+            /* If signal processing mode is IMMEDIATE, notify the signal callback. */
+            if(ComIPdus[ComRxPduId].ComIPduSignalProcessing == IMMEDIATE)
+            {
                 if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
                 {
                     ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification();
@@ -41,32 +61,11 @@ void Com_PduUnpacking(PduIdType ComIPuId)
                 }
             }
         }
-        else
-        {
-            /* Following MISRA rules */
-        }
     }
-    else
-    {
-        Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalRef)[signalIndex]);
-        /* If signal processing mode is IMMEDIATE, notify the signal callback. */
-        if(ComIPdus[ComIPuId].ComIPduSignalProcessing == IMMEDIATE)
-        {
-            if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
-            {
-                ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification();
-            }
-            else
-            {
-                /* Following MISRA rules */
-            }
-        }
-    }
-}
 }
 
 
-void Com_WriteSignalDataToPduBuffer(const ComSignal_type* signal)
+void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal)
 {
     uint8*  pdu;
     uint64  mask;
@@ -94,14 +93,14 @@ void Com_WriteSignalDataToPduBuffer(const ComSignal_type* signal)
 
 
 
-void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId, ComSignal_type* SignalRef)
+void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*const SignalRef)
 {
-    /*TODO: add the sequence of the TP case (for UINT8_N and UINT8_DYN)
-      TODO: handle the case of the size more than 8 Bytes*/
+    /*TODO: add the sequence of the TP case (for UINT8_DYN)*/
 
     uint8 signalLength;
     uint8 startBit;
     uint64 Data;
+    uint32 byteIndex;
 
     Data = *((uint64*)(ComIPdus[ComRxPduId].ComIPduDataPtr));
     startBit = SignalRef->ComBitPosition;
@@ -112,44 +111,32 @@ void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId, ComSignal_type* Signa
     switch(SignalRef->ComSignalType)
     {
     case BOOLEAN:
-        *((uint8)SignalRef->ComSignalDataPtr)=(uint8)Data;
+    case SINT8:
+    case UINT8:
+        *((uint8*)SignalRef->ComSignalDataPtr)=(uint8)Data;
         break;
     case FLOAT32:
-        *((float32)SignalRef->ComSignalDataPtr)=(float32)Data;
+    case UINT32:
+    case SINT32:
+        *((uint32*)SignalRef->ComSignalDataPtr)=(uint32)Data;
         break;
     case FLOAT64:
-        *((float64)SignalRef->ComSignalDataPtr)=(float64)Data;
-        break;
-    case UINT8:
-        *((uint8)SignalRef->ComSignalDataPtr)=(uint8)Data;
+    case UINT64:
+    case SINT64:
+        *((uint64*)SignalRef->ComSignalDataPtr)=(uint64)Data;
         break;
     case UINT16:
-        *((uint16)SignalRef->ComSignalDataPtr)=(uint16)Data;
-        break;
-    case UINT32:
-        *((uint32)SignalRef->ComSignalDataPtr)=(uint32)Data;
+    case SINT16:
+        *((uint16*)SignalRef->ComSignalDataPtr)=(uint16)Data;
         break;
     case UINT8_N:
-        *((uint8)SignalRef->ComSignalDataPtr)=(uint8)Data;
+        memcpy(SignalRef->ComSignalDataPtr, &ComIPdus[ComRxPduId].ComIPduDataPtr[startBit/8],SignalRef->ComSignalLength);
         break;
+#if 0
     case UINT8_DYN:
-        *((uint8)SignalRef->ComSignalDataPtr)=(uint8)Data;
+        *((uint8*)SignalRef->ComSignalDataPtr)=(uint8)Data;
         break;
-    case SINT8:
-        *((sint8)SignalRef->ComSignalDataPtr)=(sint8)Data;
-        break;
-    case SINT16:
-        *((sint16)SignalRef->ComSignalDataPtr)=(sint16)Data;
-        break;
-    case SINT32:
-        *((sint32)SignalRef->ComSignalDataPtr)=(sint32)Data;
-        break;
-    case SINT64:
-        *((sint64)SignalRef->ComSignalDataPtr)=(sint64)Data;
-        break;
-    case UINT64:
-        *((uint64)SignalRef->ComSignalDataPtr)=(uint64)Data;
-        break;
+#endif
     }
 }
 

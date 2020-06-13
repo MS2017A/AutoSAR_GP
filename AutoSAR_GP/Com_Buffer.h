@@ -12,9 +12,7 @@ void Com_PackSignalsToPdu(PduIdType ComIPuId);
 
 void Com_PduUnpacking(PduIdType ComRxPduId);
 
-void Com_WriteSignalDataToPduBuffer(const uint16 signalId, const void *signalData);
-
-void Com_ReadSignalDataFromPduBuffer(const uint16 signalId, void *signalData);
+void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type* const SignalRef);
 
 void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * signalData);
 

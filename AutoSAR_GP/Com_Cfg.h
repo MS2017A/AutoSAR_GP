@@ -11,8 +11,9 @@
  ****************************************************/
 #ifndef COM_CFG_H_
 #define COM_CFG_H_
-#define COM_NUM_OF_IPDU 2
-#define COM_NUM_OF_SIGNAL 4
+#define COM_NUM_OF_TX_IPDU  1
+#define COM_NUM_OF_IPDU     2
+#define COM_NUM_OF_SIGNAL   4
 
 
 /* signal definition */

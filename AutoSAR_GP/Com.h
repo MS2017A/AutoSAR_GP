@@ -130,7 +130,7 @@ typedef struct
 	/* Reference to the actual pdu data Buffer */
     void *       		ComIPduDataPtr;
 	/* Pointer to the first signal in the IPdu */
-	ComSignal_type*		ComIPduSignalRef;
+	const ComSignal_type*		ComIPduSignalRef;
 	/* The numerical value used as the ID of this I-PDU */
     PduIdType 			ComIPduHandleId ;
 	/* Index to the Ipdu of type Send */

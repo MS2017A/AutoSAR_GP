@@ -19,13 +19,14 @@ uint8 ComSignalBuffer_1 [1];
 uint8 ComSignalBuffer_2 [1];
 uint8 ComSignalBuffer_3 [1];
 uint8 ComSignalBuffer_4 [1];
-//uint8 ComSignalBuffer_4 [2];
-//uint8 ComSignalBuffer_5 [1];
-//uint8 ComSignalBuffer_6 [4];
-
+#if 0
+uint8 ComSignalBuffer_4 [2];
+uint8 ComSignalBuffer_5 [1];
+uint8 ComSignalBuffer_6 [4];
+#endif
 const ComSignal_type ComSignals[] = 
 {
- {	//signal0
+ {	/*signal0*/
   	.ComBitPosition= 0,
   	.ComUpdateBitPosition= 8 ,
   	.ComUpdateBitEnabled=TRUE,
@@ -36,7 +37,7 @@ const ComSignal_type ComSignals[] =
   	.ComNotification=NULL_PTR,
   	.ComSignalDataPtr = ComSignalBuffer_1
  },
- {	//signal1
+ {	/*signal1*/
   	.ComBitPosition= 9,
   	.ComUpdateBitPosition= 17,
   	.ComUpdateBitEnabled=TRUE,
@@ -271,4 +272,4 @@ ComTxIPdu_type ComTxIPdus[]=
   .ComTxIPduUnusedAreasDefault = 0x0,
   .ComTxModeMode = MIXED,
  }
-}
+};
