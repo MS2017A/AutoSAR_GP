@@ -103,7 +103,7 @@ SwitchTask(void *pvParameters)
                     Data=1;
 //                    Switch1=1;
 //                    Switch2=0;
-                    Com_SendSignal(heatleft, &Data);
+                    Com_SendSignal(SW_1_TX, &Data);
                     UARTprintf("\nCOM_SendSignal Switch1 is executed\n");
 
 
@@ -125,7 +125,7 @@ SwitchTask(void *pvParameters)
                 {
                     Data=1;
  //                   Switch2=1;
-                    Com_SendSignal(heatright, &Data);
+                    Com_SendSignal(SW_2_TX, &Data);
                     UARTprintf("\nCOM_SendSignal Switch2 is executed\n");
 
                     //
@@ -148,9 +148,9 @@ SwitchTask(void *pvParameters)
 //                Switch1=0;
 //                Switch2=0;
                 Data=0;
-                Com_SendSignal(heatleft, &Data);
+                Com_SendSignal(SW_1_TX, &Data);
                 UARTprintf("\nCOM_SendSignal Switch1 is executed\n");
-                Com_SendSignal(heatright, &Data);
+                Com_SendSignal(SW_2_TX, &Data);
                 UARTprintf("\nCOM_SendSignal Switch2 is executed\n");
 
                 UARTprintf("Buttons are Released.\n");

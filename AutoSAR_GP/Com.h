@@ -30,7 +30,6 @@
  ************************************************************************/
  
 /************************ComTransferProperty_type*************************/
-ComTxModeMode_type
 #define PENDING										0
 #define TRIGGERED									1
 #define TRIGGERED_ON_CHANGE							2
@@ -78,6 +77,18 @@ ComTxModeMode_type
 /************************************************************************
  *                       User-Defined Types                             *
  ************************************************************************/
+
+typedef struct
+{
+
+}ComConfig_type;
+
+/* Signal object identifier */
+typedef uint16 Com_SignalIdType;
+
+typedef uint16 Com_SignalGroupIdType;
+
+typedef uint16 Com_IpduGroupIdType;
 
 /****************************ComSignal_type*******************************/
 typedef struct

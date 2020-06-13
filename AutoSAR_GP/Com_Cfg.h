@@ -18,8 +18,8 @@
 /* signal definition */
 #define SW_1_TX 						0
 #define SW_2_TX 						1
-#define SW_1_Rx 						2
-#define SW_2_Rx 						3
+#define SW_1_RX 						2
+#define SW_2_RX 						3
 //#define CanDB_Signal_29_12_BE_Tester 3
 //#define CanDB_Signal_32_21_BE 4
 //#define CanDB_Signal_1_4_LE 5
