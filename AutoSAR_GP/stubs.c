@@ -1,5 +1,5 @@
 #include "PduR.h"
-
+#include "Com_Cbk.h"
 uint8 PduR_Buffer[10];
 PduInfoType PduRInfoTypeData;
 Std_ReturnType PduR_ComTransmit( PduIdType TxPduId, const PduInfoType* PduInfoPtr )
@@ -17,6 +17,7 @@ Std_ReturnType PduR_ComTransmit( PduIdType TxPduId, const PduInfoType* PduInfoPt
             PduR_Buffer[counter] = PduInfoPtr->SduDataPtr[counter];
         }
         Com_RxIndication(1,&PduRInfoTypeData);
+        Com_TxConfirmation(TxPduId,E_OK);
     }
     else
     {

@@ -81,14 +81,14 @@ void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal)
     {
         mask=0xffffffffffffffff;
         position=signal->ComBitPosition;
-        length=signal->ComSignalLength;
+        length=signal->ComBitSize;
         mask=mask<<(64 - (position+length));
         mask=mask>>(64 - (length));
         mask=mask<<position;
         (*((uint64*)pdu))&=~mask;
-        (*((uint64*)pdu))|=((*((uint64*)signal->ComSignalDataPtr))<<position)&mask;
+        (*((uint64*)pdu))|=(((uint64)(*((uint64*)signal->ComSignalDataPtr))<<position))&mask;
     }
-
+    UARTprintf("end\n");
 }
 
 

@@ -162,7 +162,6 @@ void Com_MainFunctionTx(void)
         IPdu = GET_IPdu(txIPdusIds[sendIPduIndex]);
 
         mixed = FALSE;
-
         switch(ComTxIPdus[IPdu->ComTxIPdu].ComTxModeMode)
         {
         /* if the transmission mode is mixed */
