@@ -39,8 +39,6 @@
 #include "semphr.h"
 #include "Com.h"
 
-
-extern const ComConfig_type ComConfiguration;
 extern uint8 Switch1,Switch2;
 
 //*****************************************************************************
@@ -89,7 +87,7 @@ COMTask(void *pvParameters)
         if(condition==0)
         {
             Com_MainFunctionTx();
-            UARTprintf("\nCOM_Tx is executed\n");
+            //UARTprintf("\nCOM_Tx is executed\n");
             condition=1;
         }
         else
@@ -97,7 +95,7 @@ COMTask(void *pvParameters)
             condition=0;
         }
         Com_MainFunctionRx();
-        UARTprintf("\nCOM_Rx is executed\n");
+        //UARTprintf("\nCOM_Rx is executed\n");
 
         vTaskDelay(COM_TOGGLE_DELAY);
     }
@@ -111,7 +109,7 @@ COMTask(void *pvParameters)
 uint32_t
 COMTaskInit(void)
 {
-    Com_Init(&ComConfiguration);
+    Com_Init(0);
     //
     // Print the current loggling COM and frequency.
     //

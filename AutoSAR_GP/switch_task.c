@@ -54,6 +54,8 @@
 extern xQueueHandle g_pLEDQueue;
 extern xSemaphoreHandle g_pUARTSemaphore;
 
+uint8_t Switch1,Switch2;
+
 //*****************************************************************************
 //
 // This task reads the buttons' state and passes this information to LEDTask.
@@ -66,7 +68,7 @@ SwitchTask(void *pvParameters)
     uint32_t ui32SwitchDelay = 25;
     uint8_t ui8CurButtonState, ui8PrevButtonState;
     uint8_t Data;
-    uint8_t Switch_Status[2];
+
 
     ui8CurButtonState = ui8PrevButtonState = 0;
 
@@ -101,17 +103,17 @@ SwitchTask(void *pvParameters)
                 if((ui8CurButtonState & ALL_BUTTONS) == LEFT_BUTTON)
                 {
                     Data=1;
-//                    Switch1=1;
-//                    Switch2=0;
-                    Com_SendSignal(heatleft, &Data);
-                    UARTprintf("\nCOM_SendSignal Switch1 is executed\n");
+                    Switch1=1;
+                    Switch2=0;
+                    Com_SendSignal(SW_1_TX, &Data);
+                    //UARTprintf("\nCOM_SendSignal Switch1 is executed\n");
 
 
                     //
                     // Guard UART from concurrent access.
                     //
                     xSemaphoreTake(g_pUARTSemaphore, portMAX_DELAY);
-                    UARTprintf("Left Button is pressed.\n");
+                    //UARTprintf("Left Button is pressed.\n");
                     xSemaphoreGive(g_pUARTSemaphore);
                 }
                 /*else
@@ -124,15 +126,15 @@ SwitchTask(void *pvParameters)
                 else if((ui8CurButtonState & ALL_BUTTONS) == RIGHT_BUTTON)
                 {
                     Data=1;
- //                   Switch2=1;
-                    Com_SendSignal(heatright, &Data);
-                    UARTprintf("\nCOM_SendSignal Switch2 is executed\n");
+                    Switch2=1;
+                    Com_SendSignal(SW_2_TX, &Data);
+                    //UARTprintf("\nCOM_SendSignal Switch2 is executed\n");
 
                     //
                     // Guard UART from concurrent access.
                     //
                     xSemaphoreTake(g_pUARTSemaphore, portMAX_DELAY);
-                    UARTprintf("Right Button is pressed.\n");
+                    //UARTprintf("Right Button is pressed.\n");
                     xSemaphoreGive(g_pUARTSemaphore);
                 }
                 /*else
@@ -145,15 +147,15 @@ SwitchTask(void *pvParameters)
             }
             else
             {
-//                Switch1=0;
-//                Switch2=0;
+                Switch1=0;
+                Switch2=0;
                 Data=0;
-                Com_SendSignal(heatleft, &Data);
-                UARTprintf("\nCOM_SendSignal Switch1 is executed\n");
-                Com_SendSignal(heatright, &Data);
-                UARTprintf("\nCOM_SendSignal Switch2 is executed\n");
+                Com_SendSignal(SW_1_TX, &Data);
+                //UARTprintf("\nCOM_SendSignal Switch1 is executed\n");
+                Com_SendSignal(SW_2_TX, &Data);
+                //UARTprintf("\nCOM_SendSignal Switch2 is executed\n");
 
-                UARTprintf("Buttons are Released.\n");
+                //UARTprintf("Buttons are Released.\n");
             }
         }
 
