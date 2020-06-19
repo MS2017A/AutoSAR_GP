@@ -1,7 +1,6 @@
 #include "Std_Types.h"
-#include "Com_Types.h"
+#include "Com.h"
 #include "Com_helper.h"
-#include "Com_Cfg.h"
 
 boolean validateSignalID (Com_SignalIdType SignalId)
 {
@@ -29,21 +28,3 @@ uint64 power(uint8 x,uint8 y)
 	}
 	return result;
 }
-
-
-//boolean compare_float(uint64 f1, uint64 f2)
-//{
-// float precision = 0.0001;
-// if (((f1 - precision) < f2) &&
-//     ((f1 + precision) > f2))
-//  {
-//   return TRUE;
-//  }
-// else if ((f1-precision)>f2 && (f1+precision)>f2){
-//     return TRUE;
-// }
-// else
-//  {
-//   return FALSE;
-//  }
-//}

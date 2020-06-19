@@ -30,7 +30,6 @@
  ************************************************************************/
  
 /************************ComTransferProperty_type*************************/
-ComTxModeMode_type
 #define PENDING										0
 #define TRIGGERED									1
 #define TRIGGERED_ON_CHANGE							2
@@ -79,6 +78,18 @@ ComTxModeMode_type
  *                       User-Defined Types                             *
  ************************************************************************/
 
+typedef struct
+{
+
+}ComConfig_type;
+
+/* Signal object identifier */
+typedef uint16 Com_SignalIdType;
+
+typedef uint16 Com_SignalGroupIdType;
+
+typedef uint16 Com_IpduGroupIdType;
+
 /****************************ComSignal_type*******************************/
 typedef struct
 {
@@ -92,6 +103,15 @@ typedef struct
      * and therefore also of any included signal, is limited by the concrete bus characteristic. For example, the limit is 8 bytes
      * for CAN and LIN, 64 bytes for CAN FD and 254 for FlexRay.*/
     uint32              ComSignalLength;
+    /* Pointer to the signal Data Buffer */
+    void*               ComSignalDataPtr;
+    /* notification function. */
+    void (*ComNotification) (void);
+    /* IPDU id of the IPDU that this signal belongs to.
+     * This is initialized by Com_Init() and should not be configured.*/
+    PduIdType           ComIPduHandleId;
+    /* To check whether update bit is configured or not.*/
+    boolean             ComUpdateBitEnabled;
 	/* Size in bits, for integer signal types. For ComSignalType UINT8_N and UINT8_DYN
        the size shall be configured by ComSignalLength. For ComSignalTypes FLOAT32 and FLOAT64 the size is already defined by the signal type 
 	   and therefore may be omitted.*/
@@ -102,15 +122,6 @@ typedef struct
 	/*  Defines if a write access to this signal can trigger the transmission of the correspon-ding I-PDU.
      *  If the I-PDU is triggered, depends also on the transmission mode of the corresponding I-PDU.*/
     uint8 				ComTransferProperty;
-	/* IPDU id of the IPDU that this signal belongs to.
-	 * This is initialized by Com_Init() and should not be configured.*/
-	PduIdType 			ComIPduHandleId; 
-	/* Pointer to the signal Data Buffer */
-	void* 				ComSignalDataPtr;
-	/* notification function. */
-	void (*ComNotification) (void);
-    /* To check whether update bit is configured or not.*/
-    boolean             ComUpdateBitEnabled;
 }ComSignal_type;
 
  /****************************ComIPdu_type*******************************/
@@ -119,7 +130,7 @@ typedef struct
 	/* Reference to the actual pdu data Buffer */
     void *       		ComIPduDataPtr;
 	/* Pointer to the first signal in the IPdu */
-	ComSignal_type*		ComIPduSignalRef;
+	const ComSignal_type*		ComIPduSignalRef;
 	/* The numerical value used as the ID of this I-PDU */
     PduIdType 			ComIPduHandleId ;
 	/* Index to the Ipdu of type Send */
@@ -139,10 +150,10 @@ typedef struct
 /****************************ComTxIPdu_type*******************************/
 typedef struct
 {
-	#if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
+#if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
 	/* Minimum delay between successive transmissions of the IPdu */
 	float32 			ComMinimumDelayTime;
-	#endif
+#endif
 	/* epetition period in seconds of the periodic transmission requests
        in case ComTxModeMode is configured to PERIODIC or MIXED.*/
 	uint16 				ComTxModeTimePeriod;
@@ -189,10 +200,6 @@ uint8 Com_ReceiveSignal( Com_SignalIdType SignalId, void* SignalDataPtr );
 
 /* the I-PDU with the given ID is triggered for transmission */
 Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId );
-
-/* Cbk function, indation from the PduRouter of recieving Pdu */
-//process signals if the signal processing mode is IMMEDIATE -> notify the signal callback , else -> mark signal as updated
-static void Com_RxProcessSignals(PduIdType ComRxPduId);
 
 #endif
 

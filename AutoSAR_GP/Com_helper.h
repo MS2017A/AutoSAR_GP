@@ -1,17 +1,10 @@
-
- /***************************************************
- *
+/***************************************************
  * File Name: Com_helper.h
-
- *
  * Author: AUTOSAR COM Team
- *
- * Date Created: 17 March 2019
- *
- * Version  : 01
- *
+ * Date Created: Jun 2020
+ * Version  : 4.0
  ****************************************************/
-#ifndef COM_HELPHER_H_
+#ifndef COM_HELPER_H_
 #define COM_HELPER_H_
 
 // set bit in specific bit
@@ -31,19 +24,7 @@
 #define GET_IPdu(IPduId) \
 	(&ComIPdus[IPduId])
 
-
-#define GET_AsuIPdu(IPduId) \
-	(&(Com_Asu_Config->ComIPdu[IPduId]))
-
-#define GET_AsuSignal(SignalId)\
-	(&(Com_Asu_Config->ComSignal[SignalId]))
-
 boolean validateSignalID (Com_SignalIdType SignalId);
-
-#define timerDec(timer) \
-	if (timer > 0) { \
-		timer = timer - COM_TX_TIME_BASE; \
-	}
 
 uint64 power(uint8 x,uint8 y);
 //boolean compare_float(uint64 f1, uint64 f2);

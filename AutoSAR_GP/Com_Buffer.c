@@ -4,9 +4,12 @@
 #include "Com_Buffer.h"
 
 
-static void Com_WriteSignalDataToPduBuffer(const ComSignal_type* signal);
 
-extern const ComIPdu_type ComIPdus[];
+static void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal);
+
+extern const ComIPdu_type   ComIPdus[];
+extern const ComSignal_type ComSignals[];
+extern uint8 ComIPduBuffer_1[3];
 
 void Com_PackSignalsToPdu(uint16 ComIPuId)
 {
@@ -16,39 +19,63 @@ void Com_PackSignalsToPdu(uint16 ComIPuId)
     IPdu = GET_IPdu(ComIPuId);
     for( signalIndex = 0 ; signalIndex < IPdu->ComIPduNumOfSignals ; signalIndex++ )
     {
-        Com_WriteSignalDataToPduBuffer(IPdu->ComIPduSignalRef[signalIndex]);
+        Com_WriteSignalDataToPduBuffer(&IPdu->ComIPduSignalRef[signalIndex]);
+        UARTprintf("ComIPduBuffer_1 = %d\n",(uint16)ComIPduBuffer_1[0]);
     }
 }
 
-
-void Com_UnPackSignalsFromPdu(uint16 ComIPuId)
+void Com_PduUnpacking(PduIdType ComRxPduId)
 {
-    uint8 signalID = 0;
-    //	const ComSignal_type * signal = NULL_PTR;
-    //	const Com_Asu_Signal_type * Asu_Signal = NULL_PTR;
-    const ComIPdu_type *IPdu = GET_IPdu(ComIPuId);
-
-    for ( signalID = 0; (IPdu->ComIPduSignalRef[signalID] != NULL_PTR); signalID++)
+    uint8 signalIndex;
+    for ( signalIndex = 0; (ComIPdus[ComRxPduId].ComIPduNumOfSignals > signalIndex); signalIndex++)
     {
-        //		signal = IPdu->ComIPduSignalRef[signalID];
-        //		Asu_Signal = GET_AsuSignal(signal->ComHandleId);
-        //
-        //		if(Asu_Signal->ComSignalUpdated)
-        //		{
-        Com_ReadSignalDataFromPduBuffer(IPdu->ComIPduSignalRef[signalID]->ComHandleId,IPdu->ComIPduSignalRef[signalID]->ComSignalDataPtr);
-        //		}
+        if((ComIPdus[ComRxPduId].ComIPduSignalRef)[signalIndex].ComUpdateBitEnabled)
+        {
+            if (CHECKBIT(ComIPdus[ComRxPduId].ComIPduDataPtr, (ComIPdus[ComRxPduId].ComIPduSignalRef)[signalIndex].ComUpdateBitPosition))
+            {
+                Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalRef[signalIndex]);
+                if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
+                {
+                    ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification();
+                }
+                else
+                {
+                    /* Following MISRA rules */
+                }
+            }
+            else
+            {
+
+            }
+        }
+        else
+        {
+            Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalRef[signalIndex]);
+            /* If signal processing mode is IMMEDIATE, notify the signal callback. */
+            if(ComIPdus[ComRxPduId].ComIPduSignalProcessing == IMMEDIATE)
+            {
+                if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
+                {
+                    ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification();
+                }
+                else
+                {
+                    /* Following MISRA rules */
+                }
+            }
+        }
     }
 }
 
 
-void Com_WriteSignalDataToPduBuffer(const ComSignal_type* signal)
+void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal)
 {
-    uint8*  pdu;
+    uint64*  pdu;
     uint64  mask;
     uint8   position;
     uint8   length;
 
-    pdu=ComIPdus[signal->ComIPduHandleId].ComIPduDataPtr;
+    pdu=(uint64*)ComIPdus[signal->ComIPduHandleId].ComIPduDataPtr;
     if(signal->ComSignalType==UINT8_N)/*TODO:check UINT8_DYN*/
     {
         memcpy(pdu+(signal->ComBitPosition/8), signal->ComSignalDataPtr,signal->ComSignalLength);
@@ -57,85 +84,65 @@ void Com_WriteSignalDataToPduBuffer(const ComSignal_type* signal)
     {
         mask=0xffffffffffffffff;
         position=signal->ComBitPosition;
-        length=signal->ComSignalLength;
+        length=signal->ComBitSize;
         mask=mask<<(64 - (position+length));
         mask=mask>>(64 - (length));
         mask=mask<<position;
         (*((uint64*)pdu))&=~mask;
         (*((uint64*)pdu))|=((*((uint64*)signal->ComSignalDataPtr))<<position)&mask;
+        UARTprintf("pdu = %d\n",*((uint64*)pdu));
+        UARTprintf("ComIPduBuffer_1 = %d\n",(uint16)*ComIPduBuffer_1);
+
     }
 
 }
 
 
 
-void Com_ReadSignalDataFromPduBuffer(const uint16 signalId, void *signalData)
+void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*const SignalRef)
 {
+    /*TODO: add the sequence of the TP case (for UINT8_DYN)*/
+
     uint8 signalLength;
-    uint8 data;
-    uint8 BitOffsetInByte;
-    uint32 bitPosition;
-    uint8 pduStartByte;
-    uint8 pduMask;
-    uint8 * dataBytes = NULL_PTR;
-    uint8 i;
-    const uint8 *pduBufferBytes = NULL_PTR;
-    uint8 * signalDataBytes = NULL_PTR;
+    uint8 startBit;
+    uint64 Data;
+    uint32 byteIndex;
 
-    const ComSignal_type * Signal = GET_Signal(signalId);
-    const ComIPdu_type *IPdu = GET_IPdu(Signal->ComIPduHandleId);
-    const void * pduBuffer = IPdu->ComIPduDataPtr;
+    Data = *((uint64*)(ComIPdus[ComRxPduId].ComIPduDataPtr));
+    startBit = SignalRef->ComBitPosition;
+    signalLength = SignalRef->ComBitSize;
+    Data = Data << (64 - (startBit+signalLength));
+    Data = Data >> (64 - (signalLength));
 
-    bitPosition = Signal->ComBitPosition;
-    signalLength = Signal->ComBitSize / 8;
-    BitOffsetInByte = bitPosition % 8;
-    pduStartByte = bitPosition / 8;
-
-    dataBytes = (uint8 *) signalData;
-    memset(signalData, 0, signalLength);
-    pduBufferBytes = (const uint8 *)pduBuffer;
-    pduBufferBytes += pduStartByte;
-
-
-    uint8 x;
-    for(i = 0; i<=signalLength; i++)
+    switch(SignalRef->ComSignalType)
     {
-        pduMask = 255;
-        if( i == 0)
-        {
-            pduMask = pduMask << BitOffsetInByte;
-            data = (* pduBufferBytes) & pduMask;
-            data = data >> BitOffsetInByte;
-            *dataBytes = *dataBytes | data;
-            x= *dataBytes;
-            pduBufferBytes ++;
-        }
-        else if(i==signalLength)
-        {
-            pduMask = pduMask >> (8-BitOffsetInByte);
-            data = (* pduBufferBytes) & pduMask;
-            data = data << (8-BitOffsetInByte);
-            *dataBytes = (* dataBytes) | data;
-            x= *dataBytes;
-        }
-        else
-        {
-            pduMask = pduMask >> (8-BitOffsetInByte);
-            data = (* pduBufferBytes) & pduMask;
-            data = data << (8-BitOffsetInByte);
-            *dataBytes = (* dataBytes) | data;
-
-            dataBytes++;
-
-            pduMask = 255;
-            pduMask = pduMask << BitOffsetInByte;
-            data = (* pduBufferBytes) & pduMask;
-            data = data >> BitOffsetInByte;
-            *dataBytes = (* pduBufferBytes) | data;
-            x= *dataBytes;
-            pduBufferBytes ++;
-
-        }
+    case BOOLEAN:
+    case SINT8:
+    case UINT8:
+        *((uint8*)SignalRef->ComSignalDataPtr)=(uint8)Data;
+        break;
+    case FLOAT32:
+    case UINT32:
+    case SINT32:
+        *((uint32*)SignalRef->ComSignalDataPtr)=(uint32)Data;
+        break;
+    case FLOAT64:
+    case UINT64:
+    case SINT64:
+        *((uint64*)SignalRef->ComSignalDataPtr)=(uint64)Data;
+        break;
+    case UINT16:
+    case SINT16:
+        *((uint16*)SignalRef->ComSignalDataPtr)=(uint16)Data;
+        break;
+    case UINT8_N:
+        memcpy(SignalRef->ComSignalDataPtr, &ComIPdus[ComRxPduId].ComIPduDataPtr[startBit/8],SignalRef->ComSignalLength);
+        break;
+#if 0
+    case UINT8_DYN:
+        *((uint8*)SignalRef->ComSignalDataPtr)=(uint8)Data;
+        break;
+#endif
     }
 }
 
@@ -143,8 +150,10 @@ void Com_ReadSignalDataFromPduBuffer(const uint16 signalId, void *signalData)
 
 void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * signalData)
 {
-    const ComSignal_type * Signal =  GET_Signal(signalId);
+    const ComSignal_type * Signal;
     uint8 mod;
+
+    Signal =  GET_Signal(signalId);
     if(Signal->ComSignalType==UINT8_N)
     {
         /*TODO:UINT8_DYN*/
@@ -167,24 +176,20 @@ void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * sign
 
 void Com_ReadSignalDataFromSignalBuffer (const uint16 signalId,  void * signalData)
 {
-    const ComSignal_type * Signal =  GET_Signal(signalId);
-    memcpy(signalData, Signal->ComSignalDataPtr, Signal->ComBitSize/8);
+    uint8 Size;
+
+    /*TODO: add UINT8_DYN*/
+    if(ComSignals[signalId].ComSignalType==UINT8_N)
+    {
+        memcpy(signalData, ComSignals[signalId].ComSignalDataPtr,ComSignals[signalId].ComSignalLength);
+    }
+    else
+    {
+        Size=ComSignals[signalId].ComBitSize/8;
+        if(ComSignals[signalId].ComBitSize%8)
+        {
+            Size++;
+        }
+        memcpy(signalData, ComSignals[signalId].ComSignalDataPtr, Size);
+    }
 }
-
-
-
-//void inline unlockBuffer(PduIdType id)
-//{
-//	Com_Asu_IPdu_type *Asu_IPdu = GET_AsuIPdu(id);
-//    Asu_IPdu->PduBufferState.Locked=FALSE;
-//    Asu_IPdu->PduBufferState.CurrentPosition=0;
-//}
-
-//void inline lockBuffer(PduIdType id)
-//{
-//	Com_Asu_IPdu_type *Asu_IPdu = GET_AsuIPdu(id);
-//	Asu_IPdu->PduBufferState.Locked=TRUE;
-//}
-
-
-

@@ -39,8 +39,6 @@
 #include "semphr.h"
 #include "Com.h"
 
-
-extern const ComConfig_type ComConfiguration;
 extern uint8 Switch1,Switch2;
 
 //*****************************************************************************
@@ -111,7 +109,7 @@ COMTask(void *pvParameters)
 uint32_t
 COMTaskInit(void)
 {
-    Com_Init(&ComConfiguration);
+    Com_Init(0);
     //
     // Print the current loggling COM and frequency.
     //
