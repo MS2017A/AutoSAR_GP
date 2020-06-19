@@ -392,31 +392,20 @@ uint8 Com_ReceiveSignal( Com_SignalIdType SignalId, void* SignalDataPtr )
 
 
 /*TODO: must be edited*/
-#if 0
-BufReq_ReturnType Com_CopyTxData( PduIdType id, const PduInfoType* info, const RetryInfoType* retry, PduLengthType* availableDataPtr )
+#if 1
+BufReq_ReturnType Com_CopyTxData( PduIdType PduId, const PduInfoType* info, const RetryInfoType* retry, PduLengthType* availableDataPtr )
 {
     BufReq_ReturnType result = BUFREQ_OK;
     uint8 * source;
-    ComIPdu_type *IPdu = GET_IPdu(id);
-    Com_Asu_IPdu_type *Asu_IPdu = GET_AsuIPdu(id);
-
-    if( (IPdu->ComIPduDirection == SEND) &&
-            (Asu_IPdu->PduBufferState.CurrentPosition + info->SduLength <= IPdu->ComIPduSize) )
+    if((ComIPdus[PduId].ComIPduDirection == SEND) && \
+            ((privateIPdus[PduId].CurrentPosition + info->SduLength) <= (ComIPdus[PduId].ComIPduSize)))
     {
-        /*TODO: An SduLength of 0 can be used to indicate state changes in
-                the retry parameter or to query the current amount of
-                available data in the upper layer module. In this case, the
-                SduDataPtr may be a NULL_PTR.*/
-        /*TODO: If the retry parameter is a NULL_PTR, it indicates that the
-                transmit data can be removed from the buffer immediately
-                after it has been copied. Otherwise, the retry parameter
-                must point to a valid RetryInfoType element.*/
-        source = (uint8*)ComIPdus[id].ComIPduDataPtr ;
-        source += privateIPdus[id].CurrentPosition;
-        LOCKBUFFER(&privateIPdus[id].PduBufferState);
+        source = (uint8*)ComIPdus[PduId].ComIPduDataPtr;
+        source += privateIPdus[PduId].CurrentPosition;
+        LOCKBUFFER(&privateIPdus[PduId].locked);
         memcpy((void*) info->SduDataPtr, (void*)source, info->SduLength);
-        privateIPdus[id].CurrentPosition += info->SduLength;
-        *availableDataPtr = ComIPdus[id].ComIPduSize - privateIPdus[id].CurrentPosition;
+        privateIPdus[PduId].CurrentPosition += info->SduLength;
+        *availableDataPtr = ComIPdus[PduId].ComIPduSize - privateIPdus[PduId].CurrentPosition;
         result = BUFREQ_OK;
     }
     else
@@ -430,22 +419,24 @@ BufReq_ReturnType Com_CopyTxData( PduIdType id, const PduInfoType* info, const R
 #endif
 
 /*TODO: it will be run later*/
-#if 0
-BufReq_ReturnType Com_CopyRxData( PduIdType id, const PduInfoType* info, PduLengthType* bufferSizePtr )
+#if 1
+BufReq_ReturnType Com_CopyRxData( PduIdType PduID, const PduInfoType* info, PduLengthType* bufferSizePtr )
 {
     BufReq_ReturnType result = BUFREQ_OK;
-    ;
+    uint8* destination;
 
-    if( (ComIPdus[Pduid].ComIPduDirection == RECEIVE) &&\
-            (ComIPdus[Pduid].ComIPduSize - privateIPdus[id].CurrentPosition >= info->SduLength )&&\
-            privateIPdus[id].Locked)
+    if((ComIPdus[PduID].ComIPduDirection == RECEIVE) &&\
+            (ComIPdus[PduID].ComIPduSize - privateIPdus[PduID].CurrentPosition >= info->SduLength ))
     {
-        void* distination =(void*)((uint8 *) ComIPdus[Pduid].ComIPduDataPtr+ privateIPdus[id].CurrentPosition);
+        /*TODO: In case of SduLength = 0 --> ??? */
+        /*TODO: In case of the SduDataPtr == NULL_PTR */
+        destination = (uint8 *) ComIPdus[PduID].ComIPduDataPtr;
+        destination += privateIPdus[PduID].CurrentPosition;
         if((info->SduDataPtr != NULL_PTR) && (info->SduLength !=0))
         {
-            memcpy(distination, info->SduDataPtr, info->SduLength);
-            privateIPdus[id].CurrentPosition += info->SduLength;
-            *bufferSizePtr = ComIPdus[Pduid].ComIPduSize - privateIPdus[id].CurrentPosition;
+            memcpy(destination, info->SduDataPtr, info->SduLength);
+            privateIPdus[PduID].CurrentPosition += info->SduLength;
+            *bufferSizePtr = ComIPdus[PduID].ComIPduSize - privateIPdus[PduID].CurrentPosition;
         }
         result = BUFREQ_OK;
     }
@@ -453,6 +444,7 @@ BufReq_ReturnType Com_CopyRxData( PduIdType id, const PduInfoType* info, PduLeng
     {
         result = BUFREQ_E_NOT_OK;
     }
+    return result;
 }
 #endif
 
@@ -508,7 +500,7 @@ Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId )
 void Com_RxIndication(PduIdType ComRxPduId, const PduInfoType* PduInfoPtr)
 {
     memcpy(ComIPdus[ComRxPduId].ComIPduDataPtr, PduInfoPtr->SduDataPtr, ComIPdus[ComRxPduId].ComIPduSize);
-    if(ComIPdus[ComRxPduId].ComIPduDirection == RECEIVE)
+    if((ComIPdus[ComRxPduId].ComIPduDirection == RECEIVE ) && (ComIPdus[ComRxPduId].ComIPduType == NORMAL))
     {
         if(ComIPdus[ComRxPduId].ComIPduSignalProcessing == IMMEDIATE)
         {
@@ -525,22 +517,24 @@ void Com_RxIndication(PduIdType ComRxPduId, const PduInfoType* PduInfoPtr)
 }
 
 /*TODO: it will be runned later*/
-#if 0
+#if 1
 BufReq_ReturnType Com_StartOfReception(PduIdType PduId,const PduInfoType *info,PduLengthType TpSduLength,PduLengthType *bufferSizePtr)
 {
     BufReq_ReturnType result=BUFREQ_OK;
     if((ComIPdus[PduId].ComIPduDirection==RECEIVE) && (ComIPdus[PduId].ComIPduType == TP))
     {
         //making sure that the buffer is unlocked
-        if(!AsuIPdu->PduBufferState.Locked)
+        if(!privateIPdus[PduId].locked)
         {
             //making sure that we have the enough space for the sdu
             if(ComIPdus[PduId].ComIPduSize>=TpSduLength)
             {
+                privateIPdus[PduId].locked=TRUE;
                 /* Initialize the current position */
                 privateIPdus[PduId].CurrentPosition = 0;
                 ///return the available buffer size
-                *bufferSizePtr=ComIPdus[PduId].ComIPduSizee;
+                *bufferSizePtr=ComIPdus[PduId].ComIPduSize;
+                result = BUFREQ_OK;
             }
             else
             {
@@ -551,15 +545,13 @@ BufReq_ReturnType Com_StartOfReception(PduIdType PduId,const PduInfoType *info,P
         {
             /*TODO: if there is a det
               TODO: if there is no det function -> discard the data frame
-              TODO: return BUFREQ_E_NOT_OK
-              TODO: local variable for return*/
+              TODO: return BUFREQ_E_NOT_OK*/
             result = BUFREQ_E_BUSY;
         }
-        result = BUFREQ_OK;
     }
     else
     {
-    result = BUFREQ_E_NOT_OK;
+        result = BUFREQ_E_NOT_OK;
     }
     return result;
 
@@ -567,37 +559,36 @@ BufReq_ReturnType Com_StartOfReception(PduIdType PduId,const PduInfoType *info,P
 #endif
 
 /*TODO: what we must do*/
-#if 0
-void Com_TpRxIndication(PduIdType id,Std_ReturnType Result)
+#if 1
+void Com_TpRxIndication(PduIdType ComRxPduId,Std_ReturnType Result)
 {
-    /*TODO: ASU must be removed */
-    const ComIPdu_type *ipdu = GET_IPdu(id);
-    Com_Asu_IPdu_type *AsuIPdu=GET_AsuIPdu(id);
     if (Result == E_OK)
     {
-        if(ComIPdus[id].ComIPduDirection == RECEIVE)
+        if((ComIPdus[ComRxPduId].ComIPduDirection == RECEIVE) && (ComIPdus[ComRxPduId].ComIPduType == TP))
         {
             if(ComIPdus[ComRxPduId].ComIPduSignalProcessing == IMMEDIATE)
             {
-                Com_PduUnpacking(id);
+                Com_PduUnpacking(ComRxPduId);
+                privateIPdus[ComRxPduId].locked=TRUE;
             }
             else
             {
                 ENTER_CRITICAL_SECTION();
-                rxDeferredPduArr[rxIndicationProcessingDeferredPduIndex][rxindicationNumberOfRecievedPdu]=id;
+                rxDeferredPduArr[rxIndicationProcessingDeferredPduIndex][rxindicationNumberOfRecievedPdu]=ComRxPduId;
                 rxindicationNumberOfRecievedPdu++;
                 EXIT_CRITICAL_SECTION();
+                privateIPdus[ComRxPduId].locked=TRUE;
             }
         }
     }
 }
 #endif
 
-#if 0
+#if 1
 void Com_TpTxConfirmation( PduIdType TxPduId, Std_ReturnType result )
 {
     uint8 signalIndex;
-    if(ComIPdus[TxPduId].ComIPduDirection==SEND)
+    if((ComIPdus[TxPduId].ComIPduDirection==SEND) && (ComIPdus[TxPduId].ComIPduType == TP))
     {
         if(result==E_OK)
         {
@@ -637,7 +628,12 @@ void Com_TxConfirmation( PduIdType TxPduId, Std_ReturnType result )
 {
     /*TODO: Reentrant for different PduIds. Non reentrant for the same PduId.*/
     uint8 signalIndex;
-    if(ComIPdus[TxPduId].ComIPduDirection==SEND)
+    /*TODO: How to notify the PduId is not valid*/
+    if(!validateSignalID(TxPduId))
+    {
+        return;
+    }
+    if((ComIPdus[TxPduId].ComIPduDirection==SEND) && (ComIPdus[TxPduId].ComIPduType == NORMAL))
     {
         if(result==E_OK)
         {
