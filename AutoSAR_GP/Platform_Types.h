@@ -18,9 +18,9 @@
 #define HIGH_BYTE_FIRST     0
 #define LOW_BYTE_FIRST      1
 
-#define TRUE              1
+#define TRUE                1
 
-#define FALSE             0
+#define FALSE               0
 
 /*****************************************************************************/
 /* REGISTER WIDTH                                                            */

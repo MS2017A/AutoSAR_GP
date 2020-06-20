@@ -125,7 +125,7 @@ void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal,uint8 typ
     }
     else
     {
-        mask=0xffffffffffffffff;
+        mask=(uint64)0xffffffffffffffffu;
         position=signal->ComBitPosition;
         length=(uint32)signal->ComBitSize;
         mask=mask<<((uint32)64 - (position+length));
