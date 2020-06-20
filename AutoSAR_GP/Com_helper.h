@@ -8,13 +8,13 @@
 #define COM_HELPER_H_
 
 // set bit in specific bit
-#define SETBIT(dest,bit)	( *( (uint8 *)dest    + (bit / 8) ) |= (uint8)(1u << (bit % 8)) )
+#define SETBIT(dest,bit)	( *( (uint8 *)dest    + (bit / (uint8)8) ) |= (uint8)(1u << (bit % (uint8)8)) )
 
 // clear bit in specific bit
-#define CLEARBIT(dest,bit)	( *( (uint8 *)dest    + (bit / 8) ) &= (uint8)~(uint8)(1u << (bit % 8)) )
+#define CLEARBIT(dest,bit)	( *( (uint8 *)dest    + (bit / (uint8)8) ) &= (uint8)~(uint8)(1u << (bit % (uint8)8)) )
 
 // get bit value
-#define CHECKBIT(source,bit)	( *( (uint8 *)source  + (bit / 8) ) &  (uint8)(1u << (bit % 8)) )
+#define CHECKBIT(source,bit)	( *( (uint8 *)source  + (bit / (uint8)8) ) &  (uint8)(1u << (bit % (uint8)8)) )
 
 
 #define GET_Signal(SignalId) \

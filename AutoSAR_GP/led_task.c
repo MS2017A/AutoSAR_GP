@@ -81,6 +81,9 @@ extern uint8 Switch1;
 extern uint8 Switch2;
 
 extern uint8 ComIPduBuffer_1 [3];
+
+extern uint8 ComSignalBuffer_1[];
+extern uint8 ComSignalBuffer_2[];
 //*****************************************************************************
 //
 // This task toggles the user selected LED at a user selected frequency. User
@@ -124,12 +127,16 @@ LEDTask(void *pvParameters)
         //        Com_ReceiveSignal(passengeronleft, (void*) &Data ) ;
         //            if(Data == 1)
         Com_ReceiveSignal(SW_1_RX, (void*) &Switch1_Curr ) ;
-        UARTprintf("\nCOM_RecieveSignal Switch1 is executed\n");
+        //UARTprintf("\nCOM_RecieveSignal Switch1 is executed\n");
         Com_ReceiveSignal(SW_2_RX, (void*) &Switch2_Curr ) ;
-        UARTprintf("\nCOM_RecieveSignal Switch2 is executed\n");
+        //UARTprintf("\nCOM_RecieveSignal Switch2 is executed\n");
 
-        //Switch1_Curr=ComIPduBuffer_1[0];
-        //Switch2_Curr=ComIPduBuffer_1[1];
+       // Switch1_Curr=ComSignalBuffer_1 [0];
+      //  Switch2_Curr=ComSignalBuffer_2 [0];
+
+      //  Switch1_Curr=ComIPduBuffer_1[0];
+      //  Switch2_Curr=ComIPduBuffer_1[1];
+
 //        UARTprintf("Switch1=%d, Switch2=%d, \nSwitch1_Prev=%d, Switch2_Prev=%d\n",Switch1_Curr,Switch2_Curr,Switch1_Prev,Switch2_Prev);
         if((Switch1_Curr!=Switch1_Prev))
         {
