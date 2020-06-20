@@ -11,6 +11,7 @@ static void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal
 
 extern const ComIPdu_type   ComIPdus[];
 extern const ComSignal_type ComSignals[];
+extern const ComSignalGroup_type ComSignalGroups[];
 
 void Com_PackSignalsToPdu(uint16 ComIPuId)
 {
@@ -29,7 +30,7 @@ void Com_PackSignalsToPdu(uint16 ComIPuId)
     {
         for( signalIndex = 0 ; signalIndex < IPdu->ComIPduSignalGroupRef[signalGroupIndex].ComIPduNumberOfGroupSignals ; signalIndex++ )
         {
-            Com_WriteSignalDataToPduBuffer(&signalIndex < IPdu->ComIPduSignalGroupRef[signalGroupIndex].ComIPduSignalRef[signalIndex],GROUP_SIGNAL);
+            Com_WriteSignalDataToPduBuffer(&IPdu->ComIPduSignalGroupRef[signalGroupIndex].ComIPduSignalRef[signalIndex],GROUP_SIGNAL);
         }
     }
 }
@@ -81,14 +82,10 @@ void Com_PduUnpacking(PduIdType ComRxPduId)
                 for(signalIndex=0;signalIndex<ComIPdus[ComRxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComIPduNumberOfGroupSignals;signalIndex++)
                 {
                     Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComIPduSignalRef[signalIndex],GROUP_SIGNAL);
-                    if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
-                    {
-                        ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification();
-                    }
-                    else
-                    {
-                        /* Following MISRA rules */
-                    }
+                }
+                if(ComIPdus[ComRxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
+                {
+                    ComIPdus[ComRxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification();
                 }
             }
         }
@@ -97,14 +94,10 @@ void Com_PduUnpacking(PduIdType ComRxPduId)
             for(signalIndex=0;signalIndex<ComIPdus[ComRxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComIPduNumberOfGroupSignals;signalIndex++)
             {
                 Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComIPduSignalRef[signalIndex],GROUP_SIGNAL);
-                if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
-                {
-                    ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification();
-                }
-                else
-                {
-                    /* Following MISRA rules */
-                }
+            }
+            if(ComIPdus[ComRxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
+            {
+                ComIPdus[ComRxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification();
             }
         }
     }
@@ -127,7 +120,7 @@ void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal,uint8 typ
         }
         else
         {
-            memcpy((void*)(pdu+(signal->ComBitPosition/8)), (void*)(((uint8*)signal->ComSignalDataPtr)+signal->ComSignalLength),signal->ComSignalLength)
+            memcpy((void*)(pdu+(signal->ComBitPosition/8)), (void*)(((uint8*)signal->ComSignalDataPtr)+signal->ComSignalLength),signal->ComSignalLength);
         }
     }
     else
@@ -189,7 +182,7 @@ void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*c
     case UINT8:
         if(type==NORMAL_SIGNAL)
         {
-            data=*((uint64*)ComIPdus[ComRxPduId].ComIPduDataPtr)
+            Data=*((uint64*)ComIPdus[ComRxPduId].ComIPduDataPtr);
         }
         else
         {
@@ -204,7 +197,7 @@ void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*c
     case SINT32:
         if(type==NORMAL_SIGNAL)
         {
-            data=*((uint64*)ComIPdus[ComRxPduId].ComIPduDataPtr)
+            Data=*((uint64*)ComIPdus[ComRxPduId].ComIPduDataPtr);
         }
         else
         {
@@ -219,7 +212,7 @@ void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*c
     case SINT64:
         if(type==NORMAL_SIGNAL)
         {
-            data=*((uint64*)ComIPdus[ComRxPduId].ComIPduDataPtr)
+            Data=*((uint64*)ComIPdus[ComRxPduId].ComIPduDataPtr);
         }
         else
         {
@@ -233,7 +226,7 @@ void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*c
     case SINT16:
         if(type==NORMAL_SIGNAL)
         {
-            data=*((uint64*)ComIPdus[ComRxPduId].ComIPduDataPtr)
+            Data=*((uint64*)ComIPdus[ComRxPduId].ComIPduDataPtr);
         }
         else
         {
@@ -252,12 +245,6 @@ void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*c
         {
             memcpy((void*)(((uint8*)SignalRef->ComSignalDataPtr)+SignalRef->ComSignalLength), &ComIPdus[ComRxPduId].ComIPduDataPtr[startBit/8],SignalRef->ComSignalLength);
         }
-        break;
-#if 0
-    case UINT8_DYN:
-        *((uint8*)SignalRef->ComSignalDataPtr)=(uint8)Data;
-        break;
-#endif
     }
 }
 
@@ -271,7 +258,6 @@ void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * sign
     Signal =  GET_Signal(signalId);
     if(Signal->ComSignalType==UINT8_N)
     {
-        /*TODO:UINT8_DYN*/
         memcpy(Signal->ComSignalDataPtr, signalData, Signal->ComSignalLength);
     }
     else
@@ -292,8 +278,6 @@ void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * sign
 void Com_ReadSignalDataFromSignalBuffer (const uint16 signalId,  void * signalData)
 {
     uint8 Size;
-
-    /*TODO: add UINT8_DYN*/
     if(ComSignals[signalId].ComSignalType==UINT8_N)
     {
         memcpy(signalData, ComSignals[signalId].ComSignalDataPtr,ComSignals[signalId].ComSignalLength);
