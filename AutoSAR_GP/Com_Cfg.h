@@ -14,6 +14,7 @@
 #define COM_NUM_OF_TX_IPDU  1
 #define COM_NUM_OF_IPDU     2
 #define COM_NUM_OF_SIGNAL   4
+#define COM_NUM_OF_GROUP_SIGNAL 3
 
 
 /* signal definition */
