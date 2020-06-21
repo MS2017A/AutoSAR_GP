@@ -9,9 +9,9 @@
 static void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal,uint8 type);
 static void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type* const SignalRef,uint8 type);
 
-extern const ComIPdu_type   ComIPdus[];
-extern const ComSignal_type ComSignals[];
-extern const ComSignalGroup_type ComSignalGroups[];
+extern const ComIPdu_type   ComIPdus[COM_NUM_OF_IPDU];
+extern const ComSignal_type ComSignals[COM_NUM_OF_SIGNAL];
+extern const ComSignalGroup_type ComSignalGroups[COM_NUM_OF_GROUP_SIGNAL];
 
 void Com_PackSignalsToPdu(uint16 ComIPuId)
 {
@@ -23,7 +23,7 @@ void Com_PackSignalsToPdu(uint16 ComIPuId)
 
     for( signalIndex =(uint8) 0 ; signalIndex < IPdu->ComIPduNumOfSignals ; signalIndex++ )
     {
-        Com_WriteSignalDataToPduBuffer(&IPdu->ComIPduSignalRef[signalIndex],NORMAL_SIGNAL);
+        Com_WriteSignalDataToPduBuffer(&IPdu->ComIPduSignalRef[signalIndex] ,NORMAL_SIGNAL);
     }
 
     for(signalGroupIndex=(uint8)0;signalGroupIndex<IPdu->ComIPduNumberOfSignalGroups;signalGroupIndex++)
@@ -41,7 +41,7 @@ void Com_PduUnpacking(PduIdType ComRxPduId)
     uint8 signalGroupIndex;
     for ( signalIndex = (uint8)0; (ComIPdus[ComRxPduId].ComIPduNumOfSignals > signalIndex); signalIndex++)
     {
-        if((ComIPdus[ComRxPduId].ComIPduSignalRef)[signalIndex].ComUpdateBitEnabled)
+        if(ComIPdus[ComRxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitEnabled)
         {
             if (CHECKBIT(ComIPdus[ComRxPduId].ComIPduDataPtr, ComIPdus[ComRxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition))
             {
@@ -104,7 +104,7 @@ void Com_PduUnpacking(PduIdType ComRxPduId)
 }
 
 
-void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal,uint8 type)
+static void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal,uint8 type)
 {
     uint8*  pdu;
     uint64  mask;
@@ -158,12 +158,16 @@ void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal,uint8 typ
             case UINT16:
             case SINT16:
                 (*((uint64*)pdu))|=(((uint64)(*((uint64*)(((uint8*)signal->ComSignalDataPtr)+2)))<<position))&mask;
+                break;
+            default:
+                /*MISRA c*/
+                break;
             }
         }
     }
 }
 
-void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*const SignalRef,uint8 type)
+static void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*const SignalRef,uint8 type)
 {
     /*TODO: add the sequence of the TP case (for UINT8_DYN)*/
 
@@ -244,6 +248,10 @@ void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*c
         {
             memcpy((void*)(((uint8*)SignalRef->ComSignalDataPtr)+SignalRef->ComSignalLength), (void*)&((uint8*)ComIPdus[ComRxPduId].ComIPduDataPtr)[startBit/(uint32)8],SignalRef->ComSignalLength);
         }
+        break;
+    default:
+        /*MISRA c*/
+        break;
     }
 }
 

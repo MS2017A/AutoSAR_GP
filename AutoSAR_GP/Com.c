@@ -4,8 +4,6 @@
  * Date Created: Jun 2020
  * Version  : 4.0
  ****************************************************/
-#include <stdio.h>
-#include <string.h>
 #include "Com.h"
 #include "Com_helper.h"
 #include "Com_Buffer.h"
@@ -20,30 +18,10 @@
 #define ENTER_CRITICAL_SECTION()             __asm("    cpsie   i\n");
 #define EXIT_CRITICAL_SECTION()              __asm("    cpsid   i\n");
 
-
-
-#define COMPARE_DATA(SignalId,signalDataPtr,equalityCheck) do\
-        {\
-    signalSizeBytes=(ComSignals[SignalId].ComBitSize/8)+if(ComSignals[SignalId].ComBitSize%8);\
-    for(counter=0;counter < signalSizeBytes; counter++)\
-    {\
-        signalBufferPtr = (uint8*)(ComSignals[SignalId].ComSignalDataPtr + counter);\
-        dataBufferPtr   = (uint8*)(signalDataPtr + counter);\
-        if((*signalBufferPtr)!=(*dataBufferPtr))\
-        {\
-            equalityCheck = 0;\
-            break;\
-        }\
-        else\
-        {\
-            equalityCheck = 1;\
-        }\
-    }while(0)
-
 #define NUMBER_OF_AUXILARY_ARR             2
 
 
-typedef struct privateIPdu_type
+typedef struct
 {
     uint32  CurrentPosition;
     /*TODO:move updated to private TX*/
@@ -51,7 +29,7 @@ typedef struct privateIPdu_type
     boolean locked;
 }privateIPdu_type;
 
-typedef struct privateTxIPdu_type
+typedef struct
 {
     float32 remainingTimePeriod;
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
@@ -65,10 +43,10 @@ typedef void (*notificationType)(void);
 /* Com_Config declaration*/
 PduIdType com_pdur[] = {vcom};
 
-extern const ComIPdu_type   ComIPdus[];
-extern const ComSignal_type ComSignals[];
-extern const ComTxIPdu_type ComTxIPdus[];
-extern const ComSignalGroup_type ComSignalGroups[];
+extern const ComIPdu_type   ComIPdus[COM_NUM_OF_IPDU];
+extern const ComSignal_type ComSignals[COM_NUM_OF_SIGNAL];
+extern const ComTxIPdu_type ComTxIPdus[COM_NUM_OF_TX_IPDU];
+extern const ComSignalGroup_type ComSignalGroups[COM_NUM_OF_GROUP_SIGNAL];
 
 /* Global variables*/
 static privateIPdu_type     privateIPdus[COM_NUM_OF_IPDU];
@@ -130,18 +108,18 @@ void Com_Init( const ComConfig_type* config)
             }
         }
         for ( signalGroupIndex = (uint16)0; (uint16)ComIPdus[pduId].ComIPduNumberOfSignalGroups > signalGroupIndex; signalGroupIndex++)
-                {
-                    /* Check for the update Bit is enabled or disabled */
-                    if((ComIPdus[pduId].ComIPduSignalGroupRef)[signalGroupIndex].ComUpdateBitEnabled)
-                    {
-                        /* Clear update bits */
-                        CLEARBIT(ComIPdus[pduId].ComIPduDataPtr, (ComIPdus[pduId].ComIPduSignalGroupRef)[signalGroupIndex].ComUpdateBitPosition);
-                    }
-                    else
-                    {
-                        /* For MISRA rules */
-                    }
-                }
+        {
+            /* Check for the update Bit is enabled or disabled */
+            if((ComIPdus[pduId].ComIPduSignalGroupRef)[signalGroupIndex].ComUpdateBitEnabled)
+            {
+                /* Clear update bits */
+                CLEARBIT(ComIPdus[pduId].ComIPduDataPtr, (ComIPdus[pduId].ComIPduSignalGroupRef)[signalGroupIndex].ComUpdateBitPosition);
+            }
+            else
+            {
+                /* For MISRA rules */
+            }
+        }
     }
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
     for(txIndex=(uint16)0;txIndex<(uint16)COM_NUM_OF_TX_IPDU;txIndex++)
@@ -190,10 +168,12 @@ void Com_MainFunctionTx(void)
         {
         /* if the transmission mode is mixed */
         case MIXED:
+            /*Violate MISRA rules intentionally: MISRA C-2004:15.2 */
             mixed = (boolean)TRUE;
             /* no break because the mixed is periodic and direct */
             /* if the transmission mode is direct */
         case DIRECT:
+            /*Violate MISRA rules intentionally: MISRA C-2004:15.2 */
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
             if(privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer < ComTxIPdus[IPdu->ComTxIPdu].ComMinimumDelayTime)
             {
@@ -255,6 +235,9 @@ void Com_MainFunctionTx(void)
                 privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod = \
                         privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod - COM_TX_TIMEBASE;
             }
+            break;
+        default:
+            break;
         }
     }
     ENTER_CRITICAL_SECTION();
@@ -322,14 +305,14 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
             case BOOLEAN:
             case UINT8:
             case SINT8:
-                if((*((uint8*)(Signal->ComSignalDataPtr)))!=(*((uint8*)SignalDataPtr)))
+                if((*((uint8*)(Signal->ComSignalDataPtr)))!=(*((const uint8*)SignalDataPtr)))
                 {
                     signalUpdated=(boolean)TRUE;
                 }
                 break;
             case UINT16:
             case SINT16:
-                if((*((uint16*)(Signal->ComSignalDataPtr)))!=(*((uint16*)SignalDataPtr)))
+                if((*((uint16*)(Signal->ComSignalDataPtr)))!=(*((const uint16*)SignalDataPtr)))
                 {
                     signalUpdated=(boolean)TRUE;
                 }
@@ -337,7 +320,7 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
             case FLOAT32:
             case UINT32:
             case SINT32:
-                if((*((uint32*)(Signal->ComSignalDataPtr)))!=(*((uint32*)SignalDataPtr)))
+                if((*((uint32*)(Signal->ComSignalDataPtr)))!=(*((const uint32*)SignalDataPtr)))
                 {
                     signalUpdated=(boolean)TRUE;
                 }
@@ -345,7 +328,7 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
             case FLOAT64:
             case UINT64:
             case SINT64:
-                if((*((uint64*)(Signal->ComSignalDataPtr)))!=(*((uint64*)SignalDataPtr)))
+                if((*((uint64*)(Signal->ComSignalDataPtr)))!=(*((const uint64*)SignalDataPtr)))
                 {
                     signalUpdated=(boolean)TRUE;
                 }
@@ -357,7 +340,7 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
             case UINT8_N:
                 for(byteIndex=(uint8)0x00;byteIndex<Signal->ComSignalLength;byteIndex++)
                 {
-                    if(((uint8*)(Signal->ComSignalDataPtr))[byteIndex]!=((uint8*)SignalDataPtr)[byteIndex])
+                    if(((uint8*)(Signal->ComSignalDataPtr))[byteIndex]!=((const uint8*)SignalDataPtr)[byteIndex])
                     {
                         signalUpdated=(boolean)TRUE;
                         break;
@@ -367,7 +350,13 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
 
                     }
                 }
+                break;
+            default:
+                break;
             }
+            break;
+            default:
+                break;
         }
 
         /* update the Signal buffer with the signal data */
@@ -393,20 +382,26 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
 /* Copies the data of the signal identified by SignalId to the location specified by SignalDataPtr */
 uint8 Com_ReceiveSignal( Com_SignalIdType SignalId, void* SignalDataPtr )
 {
+    uint8 result = E_OK;
     /* validate signalID */
     if(!validateSignalID(SignalId))
-        return E_NOT_OK;
-
-    /* check ipdu direction is receive */
-    if(ComIPdus[ComSignals[SignalId].ComIPduHandleId].ComIPduDirection == RECEIVE)
     {
-        Com_ReadSignalDataFromSignalBuffer(SignalId, SignalDataPtr);
+        result = E_NOT_OK;
     }
     else
     {
-        return E_NOT_OK;
+        /* check ipdu direction is receive */
+        if(ComIPdus[ComSignals[SignalId].ComIPduHandleId].ComIPduDirection == RECEIVE)
+        {
+            Com_ReadSignalDataFromSignalBuffer(SignalId, SignalDataPtr);
+        }
+        else
+        {
+            result = E_NOT_OK;
+        }
     }
-    return E_OK;
+
+    return result;
 }
 
 BufReq_ReturnType Com_CopyTxData( PduIdType PduId, const PduInfoType* info, const RetryInfoType* retry, PduLengthType* availableDataPtr )
@@ -785,6 +780,9 @@ uint8 Com_SendSignalGroup( Com_SignalGroupIdType SignalGroupId )
                         ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength)\
                         ,ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr,\
                         ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength);
+                break;
+            default:
+                break;
             }
         }
     }
@@ -836,6 +834,9 @@ uint8 Com_ReceiveSignalGroup( Com_SignalGroupIdType SignalGroupId )
                        (void*)(((uint8*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)+\
                                ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength),\
                                ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength);
+                break;
+            default:
+                break;
             }
         }
     }
