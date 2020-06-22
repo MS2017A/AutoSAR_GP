@@ -18,30 +18,10 @@
 #define ENTER_CRITICAL_SECTION()             __asm("    cpsie   i\n");
 #define EXIT_CRITICAL_SECTION()              __asm("    cpsid   i\n");
 
-
-
-#define COMPARE_DATA(SignalId,signalDataPtr,equalityCheck) do\
-        {\
-    signalSizeBytes=(ComSignals[SignalId].ComBitSize/8)+if(ComSignals[SignalId].ComBitSize%8);\
-    for(counter=0;counter < signalSizeBytes; counter++)\
-    {\
-        signalBufferPtr = (uint8*)(ComSignals[SignalId].ComSignalDataPtr + counter);\
-        dataBufferPtr   = (uint8*)(signalDataPtr + counter);\
-        if((*signalBufferPtr)!=(*dataBufferPtr))\
-        {\
-            equalityCheck = 0;\
-            break;\
-        }\
-        else\
-        {\
-            equalityCheck = 1;\
-        }\
-    }while(0)
-
 #define NUMBER_OF_AUXILARY_ARR             2
 
 
-typedef struct privateIPdu_type
+typedef struct
 {
     uint32  CurrentPosition;
     /*TODO:move updated to private TX*/
@@ -49,7 +29,7 @@ typedef struct privateIPdu_type
     boolean locked;
 }privateIPdu_type;
 
-typedef struct privateTxIPdu_type
+typedef struct
 {
     float32 remainingTimePeriod;
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
@@ -60,13 +40,15 @@ typedef struct privateTxIPdu_type
 
 typedef void (*notificationType)(void);
 
+static void privateGeneralTxConfirmation(PduIdType TxPduId);
+
 /* Com_Config declaration*/
 PduIdType com_pdur[] = {vcom};
 
-extern const ComIPdu_type   ComIPdus[];
-extern const ComSignal_type ComSignals[];
-extern const ComTxIPdu_type ComTxIPdus[];
-extern const ComSignalGroup_type ComSignalGroups[];
+extern const ComIPdu_type   ComIPdus[COM_NUM_OF_IPDU];
+extern const ComSignal_type ComSignals[COM_NUM_OF_SIGNAL];
+extern const ComTxIPdu_type ComTxIPdus[COM_NUM_OF_TX_IPDU];
+extern const ComSignalGroup_type ComSignalGroups[COM_NUM_OF_GROUP_SIGNAL];
 
 /* Global variables*/
 static privateIPdu_type     privateIPdus[COM_NUM_OF_IPDU];
@@ -88,27 +70,61 @@ static PduIdType            rxDeferredPduArr[NUMBER_OF_AUXILARY_ARR][COM_NUM_OF_
 void Com_Init( const ComConfig_type* config)
 {
     /* 1- loop on IPDUs */
+    uint16 pduId;
     uint16 signalIndex;
+    uint16 signalGroupIndex;
     uint16 txIndex;
+    uint32 Counter;
 
-    txIndex=(uint16)0x00;
-    for ( signalIndex = (uint16)0x00; signalIndex<(uint16)COM_NUM_OF_IPDU; signalIndex++) {
-
-        if(ComIPdus[signalIndex].ComIPduDirection==SEND)
+    txIndex=(uint16)0;
+    for ( pduId = (uint16)0; pduId<(uint16)COM_NUM_OF_IPDU; pduId++)
+    {
+        if(ComIPdus[pduId].ComIPduDirection==SEND)
         {
-            privateIPdus[signalIndex].updated=(uint8)TRUE;
-            txIPdusIds[txIndex]=signalIndex;
+            privateIPdus[pduId].updated=(boolean)TRUE;
+            txIPdusIds[txIndex]=pduId;
             txIndex++;
         }
 
         /* Initialize the memory with the default value.] */
-        if (ComIPdus[signalIndex].ComIPduDirection == SEND)
+        if (ComIPdus[pduId].ComIPduDirection == SEND)
         {
-            memset((void *)ComIPdus[signalIndex].ComIPduDataPtr, ComTxIPdus[signalIndex].ComTxIPduUnusedAreasDefault, ComIPdus[signalIndex].ComIPduSize);
+            for(Counter=(uint32)0x00;Counter<ComIPdus[pduId].ComIPduSize;Counter++)
+            {
+                *(uint8*)ComIPdus[pduId].ComIPduDataPtr=ComTxIPdus[pduId].ComTxIPduUnusedAreasDefault;
+            }
+        }
+
+        /* For each signal in this PDU */
+        for ( signalIndex = (uint16)0; (uint16)ComIPdus[pduId].ComIPduNumOfSignals > signalIndex; signalIndex++)
+        {
+            /* Check for the update Bit is enabled or disabled */
+            if((ComIPdus[pduId].ComIPduSignalRef)[signalIndex].ComUpdateBitEnabled)
+            {
+                /* Clear update bits */
+                CLEARBIT(ComIPdus[pduId].ComIPduDataPtr, (ComIPdus[pduId].ComIPduSignalRef)[signalIndex].ComUpdateBitPosition);
+            }
+            else
+            {
+                /* For MISRA rules */
+            }
+        }
+        for ( signalGroupIndex = (uint16)0; (uint16)ComIPdus[pduId].ComIPduNumberOfSignalGroups > signalGroupIndex; signalGroupIndex++)
+        {
+            /* Check for the update Bit is enabled or disabled */
+            if((ComIPdus[pduId].ComIPduSignalGroupRef)[signalGroupIndex].ComUpdateBitEnabled)
+            {
+                /* Clear update bits */
+                CLEARBIT(ComIPdus[pduId].ComIPduDataPtr, (ComIPdus[pduId].ComIPduSignalGroupRef)[signalGroupIndex].ComUpdateBitPosition);
+            }
+            else
+            {
+                /* For MISRA rules */
+            }
         }
     }
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
-    for(txIndex=(uint16)0x00 ; txIndex<(uint16)COM_NUM_OF_TX_IPDU ; txIndex++)
+    for(txIndex=(uint16)0;txIndex<(uint16)COM_NUM_OF_TX_IPDU;txIndex++)
     {
         privateTxIPdus[txIndex].minimumDelayTimer=ComTxIPdus[txIndex].ComMinimumDelayTime;
     }
@@ -130,9 +146,9 @@ void Com_MainFunctionRx(void)
     {
         pduId =  rxDeferredPduArr[rxIndicationProcessingDeferredPduIndex^((uint8)0x01)][DeferredIndex];
         /* copy the deferred buffer to the actual pdu buffer */
-        privateIPdus[pduId].locked=(uint8)TRUE;
+        privateIPdus[pduId].locked=(boolean)TRUE;
         Com_PduUnpacking(pduId);
-        privateIPdus[pduId].locked=(uint8)FALSE;
+        privateIPdus[pduId].locked=(boolean)FALSE;
     }
 }
 
@@ -148,16 +164,18 @@ void Com_MainFunctionTx(void)
     {
         IPdu = GET_IPdu(txIPdusIds[sendIPduIndex]);
 
-        mixed = (uint8)FALSE;
+        mixed = (boolean)FALSE;
 
         switch(ComTxIPdus[IPdu->ComTxIPdu].ComTxModeMode)
         {
         /* if the transmission mode is mixed */
         case MIXED:
-            mixed = (uint8)TRUE;
+            /*Violate MISRA rules intentionally: MISRA C-2004:15.2 */
+            mixed = (boolean)TRUE;
             /* no break because the mixed is periodic and direct */
             /* if the transmission mode is direct */
         case DIRECT:
+            /*Violate MISRA rules intentionally: MISRA C-2004:15.2 */
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
             if(privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer < ComTxIPdus[IPdu->ComTxIPdu].ComMinimumDelayTime)
             {
@@ -181,14 +199,14 @@ void Com_MainFunctionTx(void)
                 }
 #endif
             }
-            if(mixed==(uint8)FALSE)/* in case the Pdu is mixed don't break */
+            if(mixed==(boolean)FALSE)/* in case the Pdu is mixed don't break */
             {
                 break;
             }
             /* if the transmission mode is periodic */
         case PERIODIC:
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
-            if(mixed!=(uint8)FALSE)
+            if(mixed!=(boolean)FALSE)
             {
                 if(privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer < ComTxIPdus[IPdu->ComTxIPdu].ComMinimumDelayTime)
                 {
@@ -219,6 +237,9 @@ void Com_MainFunctionTx(void)
                 privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod = \
                         privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod - COM_TX_TIMEBASE;
             }
+            break;
+        default:
+            break;
         }
     }
     ENTER_CRITICAL_SECTION();
@@ -259,11 +280,11 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
     else
     {
         privateIPdu=&privateIPdus[Signal->ComIPduHandleId];
-        signalUpdated=(uint8)FALSE;
+        signalUpdated=(boolean)FALSE;
         switch(Signal->ComTransferProperty)
         {
         case TRIGGERED_WITHOUT_REPETITION:
-            signalUpdated=(uint8)TRUE;
+            signalUpdated=(boolean)TRUE;
             break;
 #if 0 /*repitition is not supported now*/
         case TRIGGERED:
@@ -276,7 +297,7 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
             {
                 Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft = \
                         (IPdu->ComTxIPdu.ComTxModeFalse.ComTxMode.ComTxModeNumberOfRepetitions) + 1;
-                Asu_IPdu->Com_Asu_Pdu_changed = FALSE;
+                Asu_IPdu->Com_Asu_Pdu_changed = (boolean)FALSE;
             }
             break;
 #endif
@@ -286,32 +307,32 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
             case BOOLEAN:
             case UINT8:
             case SINT8:
-                if((*((uint8*)(Signal->ComSignalDataPtr)))!=(*((uint8*)SignalDataPtr)))
+                if((*((uint8*)(Signal->ComSignalDataPtr)))!=(*((const uint8*)SignalDataPtr)))
                 {
-                    signalUpdated=(uint8)TRUE;
+                    signalUpdated=(boolean)TRUE;
                 }
                 break;
             case UINT16:
             case SINT16:
-                if((*((uint16*)(Signal->ComSignalDataPtr)))!=(*((uint16*)SignalDataPtr)))
+                if((*((uint16*)(Signal->ComSignalDataPtr)))!=(*((const uint16*)SignalDataPtr)))
                 {
-                    signalUpdated=(uint8)TRUE;
+                    signalUpdated=(boolean)TRUE;
                 }
                 break;
             case FLOAT32:
             case UINT32:
             case SINT32:
-                if((*((uint32*)(Signal->ComSignalDataPtr)))!=(*((uint32*)SignalDataPtr)))
+                if((*((uint32*)(Signal->ComSignalDataPtr)))!=(*((const uint32*)SignalDataPtr)))
                 {
-                    signalUpdated=(uint8)TRUE;
+                    signalUpdated=(boolean)TRUE;
                 }
                 break;
             case FLOAT64:
             case UINT64:
             case SINT64:
-                if((*((uint64*)(Signal->ComSignalDataPtr)))!=(*((uint64*)SignalDataPtr)))
+                if((*((uint64*)(Signal->ComSignalDataPtr)))!=(*((const uint64*)SignalDataPtr)))
                 {
-                    signalUpdated=(uint8)TRUE;
+                    signalUpdated=(boolean)TRUE;
                 }
                 else
                 {
@@ -321,9 +342,9 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
             case UINT8_N:
                 for(byteIndex=(uint8)0x00;byteIndex<Signal->ComSignalLength;byteIndex++)
                 {
-                    if(((uint8*)(Signal->ComSignalDataPtr))[byteIndex]!=((uint8*)SignalDataPtr)[byteIndex])
+                    if(((uint8*)(Signal->ComSignalDataPtr))[byteIndex]!=((const uint8*)SignalDataPtr)[byteIndex])
                     {
-                        signalUpdated=(uint8)TRUE;
+                        signalUpdated=(boolean)TRUE;
                         break;
                     }
                     else
@@ -331,16 +352,22 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
 
                     }
                 }
+                break;
+            default:
+                break;
             }
+            break;
+            default:
+                break;
         }
 
         /* update the Signal buffer with the signal data */
-        if((uint8)TRUE==signalUpdated)
+        if((boolean)TRUE==signalUpdated)
         {
             privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft = (uint8)0x01;
-            privateIPdu->updated=(uint8)TRUE;
+            privateIPdu->updated=(boolean)TRUE;
             Com_WriteSignalDataToSignalBuffer(SignalId, SignalDataPtr);
-            if(Signal->ComUpdateBitEnabled!=(uint8)FALSE)
+            if(Signal->ComUpdateBitEnabled!=(boolean)FALSE)
             {
                 /* Set the update bit of this signal */
                 SETBIT(IPdu->ComIPduDataPtr, Signal->ComUpdateBitPosition);
@@ -357,20 +384,26 @@ uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr )
 /* Copies the data of the signal identified by SignalId to the location specified by SignalDataPtr */
 uint8 Com_ReceiveSignal( Com_SignalIdType SignalId, void* SignalDataPtr )
 {
+    uint8 result = E_OK;
     /* validate signalID */
     if(!validateSignalID(SignalId))
-        return E_NOT_OK;
-
-    /* check ipdu direction is receive */
-    if(ComIPdus[ComSignals[SignalId].ComIPduHandleId].ComIPduDirection == RECEIVE)
     {
-        Com_ReadSignalDataFromSignalBuffer(SignalId, SignalDataPtr);
+        result = E_NOT_OK;
     }
     else
     {
-        return E_NOT_OK;
+        /* check ipdu direction is receive */
+        if(ComIPdus[ComSignals[SignalId].ComIPduHandleId].ComIPduDirection == RECEIVE)
+        {
+            Com_ReadSignalDataFromSignalBuffer(SignalId, SignalDataPtr);
+        }
+        else
+        {
+            result = E_NOT_OK;
+        }
     }
-    return E_OK;
+
+    return result;
 }
 
 BufReq_ReturnType Com_CopyTxData( PduIdType PduId, const PduInfoType* info, const RetryInfoType* retry, PduLengthType* availableDataPtr )
@@ -382,7 +415,7 @@ BufReq_ReturnType Com_CopyTxData( PduIdType PduId, const PduInfoType* info, cons
     {
         source = (uint8*)ComIPdus[PduId].ComIPduDataPtr;
         source += privateIPdus[PduId].CurrentPosition;
-        LOCKBUFFER(&privateIPdus[PduId].locked);
+        privateIPdus[PduId].locked=(boolean)TRUE;
         memcpy((void*) info->SduDataPtr, (void*)source, info->SduLength);
         privateIPdus[PduId].CurrentPosition += info->SduLength;
         *availableDataPtr = (PduLengthType)ComIPdus[PduId].ComIPduSize - (PduLengthType)privateIPdus[PduId].CurrentPosition;
@@ -448,11 +481,15 @@ Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId )
         }
         else
         {
-            privateIPdu->locked=(uint8)TRUE;
+            privateIPdu->locked=(boolean)TRUE;
             if(privateIPdu->updated)
             {
-                privateIPdu->updated=(uint8)FALSE;
+                privateIPdu->updated=(boolean)FALSE;
                 Com_PackSignalsToPdu(PduId);
+            }
+            if(IPdu->ComIPduType==NORMAL)
+            {
+                privateIPdu->locked=(boolean)FALSE;
             }
             IPdu = GET_IPdu(PduId);
             PduInfoPackage.SduDataPtr = (uint8 *)IPdu->ComIPduDataPtr;
@@ -470,14 +507,14 @@ Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId )
             {
                 for ( signalIndex = (uint8)0x00 ; signalIndex < IPdu->ComIPduNumOfSignals ; signalIndex++ )
                 {
-                    if(IPdu->ComIPduSignalRef[signalIndex].ComUpdateBitEnabled!=(uint8)FALSE)/*Update bit is enabled*/
+                    if(IPdu->ComIPduSignalRef[signalIndex].ComUpdateBitEnabled!=(boolean)FALSE)/*Update bit is enabled*/
                     {
                         CLEARBIT(IPdu->ComIPduDataPtr, IPdu->ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
                     }
                 }
                 for(signalGroupIndex=(uint8)0;signalGroupIndex<IPdu->ComIPduNumberOfSignalGroups;signalGroupIndex++)
                 {
-                    if(IPdu->ComIPduSignalGroupRef[signalGroupIndex].ComUpdateBitEnabled!=(uint8)FALSE)
+                    if(IPdu->ComIPduSignalGroupRef[signalGroupIndex].ComUpdateBitEnabled!=(boolean)FALSE)
                     {
                         CLEARBIT(IPdu->ComIPduDataPtr,IPdu->ComIPduSignalGroupRef[signalGroupIndex].ComUpdateBitPosition);
                     }
@@ -501,9 +538,9 @@ void Com_RxIndication(PduIdType ComRxPduId, const PduInfoType* PduInfoPtr)
     {
         if(ComIPdus[ComRxPduId].ComIPduSignalProcessing == IMMEDIATE)
         {
-            privateIPdus[ComRxPduId].locked=(uint8)TRUE;
+            privateIPdus[ComRxPduId].locked=(boolean)TRUE;
             Com_PduUnpacking(ComRxPduId);
-            privateIPdus[ComRxPduId].locked=(uint8)FALSE;
+            privateIPdus[ComRxPduId].locked=(boolean)FALSE;
         }
         else
         {
@@ -526,7 +563,7 @@ BufReq_ReturnType Com_StartOfReception(PduIdType PduId,const PduInfoType *info,P
             //making sure that we have the enough space for the sdu
             if(ComIPdus[PduId].ComIPduSize>=TpSduLength)
             {
-                privateIPdus[PduId].locked=(uint8)TRUE;
+                privateIPdus[PduId].locked=(boolean)TRUE;
                 /* Initialize the current position */
                 privateIPdus[PduId].CurrentPosition = (uint32)0;
                 ///return the available buffer size
@@ -563,7 +600,7 @@ void Com_TpRxIndication(PduIdType ComRxPduId,Std_ReturnType Result)
             if(ComIPdus[ComRxPduId].ComIPduSignalProcessing == IMMEDIATE)
             {
                 Com_PduUnpacking(ComRxPduId);
-                privateIPdus[ComRxPduId].locked=(uint8)FALSE;
+                privateIPdus[ComRxPduId].locked=(boolean)FALSE;
             }
             else
             {
@@ -571,7 +608,65 @@ void Com_TpRxIndication(PduIdType ComRxPduId,Std_ReturnType Result)
                 rxDeferredPduArr[rxIndicationProcessingDeferredPduIndex][rxindicationNumberOfRecievedPdu]=ComRxPduId;
                 rxindicationNumberOfRecievedPdu++;
                 EXIT_CRITICAL_SECTION();
-                privateIPdus[ComRxPduId].locked=(uint8)FALSE;
+                privateIPdus[ComRxPduId].locked=(boolean)FALSE;
+            }
+        }
+    }
+}
+
+static void privateGeneralTxConfirmation(PduIdType TxPduId)
+{
+    uint8 signalIndex;
+    uint8 signalGroupIndex;
+    for ( signalIndex = (uint8)0x00 ; signalIndex < ComIPdus[TxPduId].ComIPduNumOfSignals ; signalIndex++ )
+    {
+        /*Update bit is enabled*/
+        if((ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitEnabled!=(boolean)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
+        {
+            CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
+        }
+        if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
+        {
+            if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
+            {
+                ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification();
+            }
+        }
+        else
+        {
+            if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
+            {
+                ENTER_CRITICAL_SECTION();
+                pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
+                        ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification;
+                pendingTxNotificationsNumber++;
+                EXIT_CRITICAL_SECTION();
+            }
+        }
+    }
+    for(signalGroupIndex=(uint8)0;signalGroupIndex<ComIPdus[TxPduId].ComIPduNumberOfSignalGroups;signalGroupIndex++)
+    {
+        /*Update bit is enabled*/
+        if((ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComUpdateBitEnabled!=(boolean)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
+        {
+            CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
+        }
+        if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
+        {
+            if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
+            {
+                ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification();
+            }
+        }
+        else
+        {
+            if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
+            {
+                ENTER_CRITICAL_SECTION();
+                pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
+                        ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification;
+                pendingTxNotificationsNumber++;
+                EXIT_CRITICAL_SECTION();
             }
         }
     }
@@ -579,134 +674,26 @@ void Com_TpRxIndication(PduIdType ComRxPduId,Std_ReturnType Result)
 
 void Com_TpTxConfirmation( PduIdType TxPduId, Std_ReturnType result )
 {
-    uint8 signalIndex;
-    uint8 signalGroupIndex;
-    if((ComIPdus[TxPduId].ComIPduDirection==SEND) && (ComIPdus[TxPduId].ComIPduType == TP))
+    if(result==E_OK)
     {
-        if(result==E_OK)
+        if((ComIPdus[TxPduId].ComIPduDirection==SEND)&&(ComIPdus[TxPduId].ComIPduType == TP))
         {
-            for ( signalIndex = (uint8)0 ; signalIndex < ComIPdus[TxPduId].ComIPduNumOfSignals ; signalIndex++ )
-            {
-                /*Update bit is enabled*/
-                if((ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitEnabled!=(uint8)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
-                {
-                    CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
-                }
-                if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
-                    {
-                        ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification();
-                    }
-                }
-                else
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
-                    {
-                        ENTER_CRITICAL_SECTION();
-                        pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
-                                ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification;
-                        pendingTxNotificationsNumber++;
-                        EXIT_CRITICAL_SECTION();
-                    }
-                }
-            }
-            for(signalGroupIndex=(uint8)0x00;signalGroupIndex<ComIPdus[TxPduId].ComIPduNumberOfSignalGroups;signalGroupIndex++)
-            {
-                /*Update bit is enabled*/
-                if((ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComUpdateBitEnabled!=(uint8)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
-                {
-                    CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
-                }
-                if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
-                    {
-                        ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification();
-                    }
-                }
-                else
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
-                    {
-                        ENTER_CRITICAL_SECTION();
-                        pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
-                                ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification;
-                        pendingTxNotificationsNumber++;
-                        EXIT_CRITICAL_SECTION();
-                    }
-                }
-            }
+            privateIPdus[TxPduId].locked=(uint8)FALSE;
+            privateGeneralTxConfirmation(TxPduId);
         }
-        privateIPdus[TxPduId].locked=(uint8)FALSE;
     }
 }
 
 void Com_TxConfirmation( PduIdType TxPduId, Std_ReturnType result )
 {
-    uint8 signalIndex;
-    uint8 signalGroupIndex;
-    if((ComIPdus[TxPduId].ComIPduDirection==SEND) && (ComIPdus[TxPduId].ComIPduType == TP))
+    if(result==E_OK)
     {
-        if(result==E_OK)
+        if((ComIPdus[TxPduId].ComIPduDirection==SEND)&&(ComIPdus[TxPduId].ComIPduType == NORMAL))
         {
-            for ( signalIndex = (uint8)0x00 ; signalIndex < ComIPdus[TxPduId].ComIPduNumOfSignals ; signalIndex++ )
-            {
-                /*Update bit is enabled*/
-                if((ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitEnabled!=(uint8)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
-                {
-                    CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
-                }
-                if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
-                    {
-                        ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification();
-                    }
-                }
-                else
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
-                    {
-                        ENTER_CRITICAL_SECTION();
-                        pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
-                                ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification;
-                        pendingTxNotificationsNumber++;
-                        EXIT_CRITICAL_SECTION();
-                    }
-                }
-            }
-            for(signalGroupIndex=(uint8)0;signalGroupIndex<ComIPdus[TxPduId].ComIPduNumberOfSignalGroups;signalGroupIndex++)
-            {
-                /*Update bit is enabled*/
-                if((ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComUpdateBitEnabled!=(uint8)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
-                {
-                    CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
-                }
-                if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
-                    {
-                        ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification();
-                    }
-                }
-                else
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
-                    {
-                        ENTER_CRITICAL_SECTION();
-                        pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
-                                ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification;
-                        pendingTxNotificationsNumber++;
-                        EXIT_CRITICAL_SECTION();
-                    }
-                }
-            }
+            privateGeneralTxConfirmation(TxPduId);
         }
-        privateIPdus[TxPduId].locked=(uint8)FALSE;
     }
 }
-
 
 uint8 Com_SendSignalGroup( Com_SignalGroupIdType SignalGroupId )
 {
@@ -749,6 +736,9 @@ uint8 Com_SendSignalGroup( Com_SignalGroupIdType SignalGroupId )
                         ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength)\
                         ,ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr,\
                         ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength);
+                break;
+            default:
+                break;
             }
         }
     }
@@ -800,6 +790,9 @@ uint8 Com_ReceiveSignalGroup( Com_SignalGroupIdType SignalGroupId )
                        (void*)(((uint8*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)+\
                                ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength),\
                                ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength);
+                break;
+            default:
+                break;
             }
         }
     }

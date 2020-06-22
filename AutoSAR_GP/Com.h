@@ -30,49 +30,49 @@
  ************************************************************************/
 
 /************************ComTransferProperty_type*************************/
-#define PENDING                                     (uint8)0
-#define TRIGGERED                                   (uint8)1
-#define TRIGGERED_ON_CHANGE                         (uint8)2
-#define TRIGGERED_ON_CHANGE_WITHOUT_REPETITION      (uint8)3
-#define TRIGGERED_WITHOUT_REPETITION                (uint8)4
+#define PENDING                                     ((uint8)0)
+#define TRIGGERED                                   ((uint8)1)
+#define TRIGGERED_ON_CHANGE                         ((uint8)2)
+#define TRIGGERED_ON_CHANGE_WITHOUT_REPETITION      ((uint8)3)
+#define TRIGGERED_WITHOUT_REPETITION                ((uint8)4)
 
 /***************************ComTxModeMode_type***************************/
-#define DIRECT                                      (uint8)0
-#define MIXED                                       (uint8)1
-#define NONE                                        (uint8)2
-#define PERIODIC                                    (uint8)3
+#define DIRECT                                      ((uint8)0)
+#define MIXED                                       ((uint8)1)
+#define NONE                                        ((uint8)2)
+#define PERIODIC                                    ((uint8)3)
 
 /*************************ComIPduDirection_type**************************/
-#define RECEIVE                                     (uint8)0
-#define SEND                                        (uint8)1
+#define RECEIVE                                     ((uint8)0)
+#define SEND                                        ((uint8)1)
 
 /**********************ComIPduSignalProcessing_type**********************/
-#define DEFERRED                                    (uint8)0
-#define IMMEDIATE                                   (uint8)1
+#define DEFERRED                                    ((uint8)0)
+#define IMMEDIATE                                   ((uint8)1)
 
 /******************************ComIPduType_type**************************/
-#define NORMAL                                      (uint8)0
-#define TP                                          (uint8)1
+#define NORMAL                                      ((uint8)0)
+#define TP                                          ((uint8)1)
 
 /*********************ComTxIPduClearUpdateBit_type***********************/
-#define CONFIRMATION                                (uint8)0
-#define TRANSMIT                                    (uint8)1
-#define TRIGGER_TRANSMIT                            (uint8)2
+#define CONFIRMATION                                ((uint8)0)
+#define TRANSMIT                                    ((uint8)1)
+#define TRIGGER_TRANSMIT                            ((uint8)2)
 
 /****************************ComSignalType_type**************************/
-#define BOOLEAN                                     (uint8)0
-#define FLOAT32                                     (uint8)1
-#define FLOAT64                                     (uint8)2
-#define UINT8                                       (uint8)3
-#define UINT16                                      (uint8)4
-#define UINT32                                      (uint8)5
-#define UINT8_N                                     (uint8)6
-#define UINT8_DYN                                   (uint8)7
-#define SINT8                                       (uint8)8
-#define SINT16                                      (uint8)9
-#define SINT32                                      (uint8)10
-#define SINT64                                      (uint8)11
-#define UINT64                                      (uint8)12
+#define BOOLEAN                                     ((uint8)0 )
+#define FLOAT32                                     ((uint8)1 )
+#define FLOAT64                                     ((uint8)2 )
+#define UINT8                                       ((uint8)3 )
+#define UINT16                                      ((uint8)4 )
+#define UINT32                                      ((uint8)5 )
+#define UINT8_N                                     ((uint8)6 )
+#define UINT8_DYN                                   ((uint8)7 )
+#define SINT8                                       ((uint8)8 )
+#define SINT16                                      ((uint8)9 )
+#define SINT32                                      ((uint8)10)
+#define SINT64                                      ((uint8)11)
+#define UINT64                                      ((uint8)12)
 
 /************************************************************************
  *                       User-Defined Types                             *
@@ -253,11 +253,18 @@ void Com_MainFunctionTx(void);
 /* Updates the signal object identified by SignalId with the signal referenced by the SignalDataPtr parameter */
 uint8 Com_SendSignal( Com_SignalIdType SignalId, const void* SignalDataPtr );
 
+/*The service Com_ReceiveSignalGroup copies the received signal group from the I-PDU to the shadow buffer.*/
+uint8 Com_ReceiveSignalGroup( Com_SignalGroupIdType SignalGroupId );
+
+/*The service Com_SendSignalGroup copies the content of the associated shadow buffer to the associated I-PDU.*/
+uint8 Com_SendSignalGroup( Com_SignalGroupIdType SignalGroupId );
+
 /* Copies the data of the signal identified by SignalId to the location specified by SignalDataPtr */
 uint8 Com_ReceiveSignal( Com_SignalIdType SignalId, void* SignalDataPtr );
 
 /* the I-PDU with the given ID is triggered for transmission */
 Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId );
+
 
 #endif
 

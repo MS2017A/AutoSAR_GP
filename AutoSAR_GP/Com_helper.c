@@ -4,14 +4,16 @@
 
 boolean validateSignalID (Com_SignalIdType SignalId)
 {
-	if(SignalId<COM_NUM_OF_SIGNAL)
+    boolean result=TRUE;
+	if(SignalId<(Com_SignalIdType)COM_NUM_OF_SIGNAL)
 	{
-		return TRUE;
+		result = (boolean)TRUE;
 	}
 	else
 	{
-	    return FALSE;
+	    result = (boolean)FALSE;
 	}
+	return result;
 }
 
 
@@ -19,12 +21,16 @@ uint64 power(uint8 x,uint8 y)
 {
 	uint64 result = x;
 
-	if (y == 0)
-		return 1;
-
-	for (; y>1 ; y--)
+	if (y == (uint8)0)
+	{
+	    result = (uint64)1;
+	}
+	else
+	{
+	for (; y>(uint8)1 ; y--)
 	{
 		result = result * x;
+	}
 	}
 	return result;
 }
