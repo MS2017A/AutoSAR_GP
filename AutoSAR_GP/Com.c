@@ -40,6 +40,8 @@ typedef struct
 
 typedef void (*notificationType)(void);
 
+static void privateGeneralTxConfirmation(PduIdType TxPduId);
+
 /* Com_Config declaration*/
 PduIdType com_pdur[] = {vcom};
 
@@ -485,6 +487,10 @@ Std_ReturnType Com_TriggerIPDUSend( PduIdType PduId )
                 privateIPdu->updated=(boolean)FALSE;
                 Com_PackSignalsToPdu(PduId);
             }
+            if(IPdu->ComIPduType==NORMAL)
+            {
+                privateIPdu->locked=(boolean)FALSE;
+            }
             IPdu = GET_IPdu(PduId);
             PduInfoPackage.SduDataPtr = (uint8 *)IPdu->ComIPduDataPtr;
             PduInfoPackage.SduLength = (uint32)IPdu->ComIPduSize;
@@ -608,136 +614,86 @@ void Com_TpRxIndication(PduIdType ComRxPduId,Std_ReturnType Result)
     }
 }
 
-void Com_TpTxConfirmation( PduIdType TxPduId, Std_ReturnType result )
+static void privateGeneralTxConfirmation(PduIdType TxPduId)
 {
     uint8 signalIndex;
     uint8 signalGroupIndex;
-    if((ComIPdus[TxPduId].ComIPduDirection==SEND) && (ComIPdus[TxPduId].ComIPduType == TP))
+    for ( signalIndex = (uint8)0x00 ; signalIndex < ComIPdus[TxPduId].ComIPduNumOfSignals ; signalIndex++ )
     {
-        if(result==E_OK)
+        /*Update bit is enabled*/
+        if((ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitEnabled!=(boolean)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
         {
-            for ( signalIndex = (uint8)0 ; signalIndex < ComIPdus[TxPduId].ComIPduNumOfSignals ; signalIndex++ )
+            CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
+        }
+        if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
+        {
+            if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
             {
-                /*Update bit is enabled*/
-                if((ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitEnabled!=(boolean)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
-                {
-                    CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
-                }
-                if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
-                    {
-                        ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification();
-                    }
-                }
-                else
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
-                    {
-                        ENTER_CRITICAL_SECTION();
-                        pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
-                                ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification;
-                        pendingTxNotificationsNumber++;
-                        EXIT_CRITICAL_SECTION();
-                    }
-                }
-            }
-            for(signalGroupIndex=(uint8)0x00;signalGroupIndex<ComIPdus[TxPduId].ComIPduNumberOfSignalGroups;signalGroupIndex++)
-            {
-                /*Update bit is enabled*/
-                if((ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComUpdateBitEnabled!=(boolean)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
-                {
-                    CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
-                }
-                if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
-                    {
-                        ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification();
-                    }
-                }
-                else
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
-                    {
-                        ENTER_CRITICAL_SECTION();
-                        pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
-                                ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification;
-                        pendingTxNotificationsNumber++;
-                        EXIT_CRITICAL_SECTION();
-                    }
-                }
+                ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification();
             }
         }
-        privateIPdus[TxPduId].locked=(boolean)FALSE;
+        else
+        {
+            if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
+            {
+                ENTER_CRITICAL_SECTION();
+                pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
+                        ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification;
+                pendingTxNotificationsNumber++;
+                EXIT_CRITICAL_SECTION();
+            }
+        }
+    }
+    for(signalGroupIndex=(uint8)0;signalGroupIndex<ComIPdus[TxPduId].ComIPduNumberOfSignalGroups;signalGroupIndex++)
+    {
+        /*Update bit is enabled*/
+        if((ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComUpdateBitEnabled!=(boolean)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
+        {
+            CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
+        }
+        if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
+        {
+            if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
+            {
+                ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification();
+            }
+        }
+        else
+        {
+            if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
+            {
+                ENTER_CRITICAL_SECTION();
+                pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
+                        ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification;
+                pendingTxNotificationsNumber++;
+                EXIT_CRITICAL_SECTION();
+            }
+        }
+    }
+}
+
+void Com_TpTxConfirmation( PduIdType TxPduId, Std_ReturnType result )
+{
+    if(result==E_OK)
+    {
+        if((ComIPdus[TxPduId].ComIPduDirection==SEND)&&(ComIPdus[TxPduId].ComIPduType == TP))
+        {
+            privateIPdus[TxPduId].locked=(uint8)FALSE;
+            privateGeneralTxConfirmation(TxPduId);
+        }
     }
 }
 
 void Com_TxConfirmation( PduIdType TxPduId, Std_ReturnType result )
 {
-    uint8 signalIndex;
-    uint8 signalGroupIndex;
-    if((ComIPdus[TxPduId].ComIPduDirection==SEND) && (ComIPdus[TxPduId].ComIPduType == TP))
+    if(result==E_OK)
     {
-        if(result==E_OK)
+        if((ComIPdus[TxPduId].ComIPduDirection==SEND)&&(ComIPdus[TxPduId].ComIPduType == NORMAL))
         {
-            for ( signalIndex = (uint8)0x00 ; signalIndex < ComIPdus[TxPduId].ComIPduNumOfSignals ; signalIndex++ )
-            {
-                /*Update bit is enabled*/
-                if((ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitEnabled!=(boolean)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
-                {
-                    CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
-                }
-                if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
-                    {
-                        ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification();
-                    }
-                }
-                else
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification)
-                    {
-                        ENTER_CRITICAL_SECTION();
-                        pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
-                                ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComNotification;
-                        pendingTxNotificationsNumber++;
-                        EXIT_CRITICAL_SECTION();
-                    }
-                }
-            }
-            for(signalGroupIndex=(uint8)0;signalGroupIndex<ComIPdus[TxPduId].ComIPduNumberOfSignalGroups;signalGroupIndex++)
-            {
-                /*Update bit is enabled*/
-                if((ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComUpdateBitEnabled!=(boolean)FALSE)&&(ComTxIPdus[ComIPdus[TxPduId].ComTxIPdu].ComTxIPduClearUpdateBit==CONFIRMATION))
-                {
-                    CLEARBIT(ComIPdus[TxPduId].ComIPduDataPtr, ComIPdus[TxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition);
-                }
-                if(ComIPdus[TxPduId].ComIPduSignalProcessing==IMMEDIATE)
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
-                    {
-                        ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification();
-                    }
-                }
-                else
-                {
-                    if(ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification)
-                    {
-                        ENTER_CRITICAL_SECTION();
-                        pendingTxNotifications[pendingTxNotificationsBufferIndex][pendingTxNotificationsNumber]=\
-                                ComIPdus[TxPduId].ComIPduSignalGroupRef[signalGroupIndex].ComNotification;
-                        pendingTxNotificationsNumber++;
-                        EXIT_CRITICAL_SECTION();
-                    }
-                }
-            }
+            privateGeneralTxConfirmation(TxPduId);
         }
-        privateIPdus[TxPduId].locked=(boolean)FALSE;
     }
 }
-
 
 uint8 Com_SendSignalGroup( Com_SignalGroupIdType SignalGroupId )
 {
