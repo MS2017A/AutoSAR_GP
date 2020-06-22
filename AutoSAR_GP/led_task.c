@@ -95,7 +95,7 @@ LEDTask(void *pvParameters)
 {
     portTickType ui32WakeTime;
     uint32_t ui32LEDToggleDelay;
-    uint8_t Data;
+    //uint8_t Data;
     uint8_t Switch1_Prev=0;
     uint8_t Switch2_Prev=0;
     uint8_t Switch1_Curr=0;
@@ -105,7 +105,7 @@ LEDTask(void *pvParameters)
     //
     // Initialize the LED Toggle Delay to default value.
     //
-    ui32LEDToggleDelay = LED_TOGGLE_DELAY;
+    ui32LEDToggleDelay = (uint32)LED_TOGGLE_DELAY;
 
     //
     // Get the current tick count.
@@ -126,9 +126,9 @@ LEDTask(void *pvParameters)
         //
         //        Com_ReceiveSignal(passengeronleft, (void*) &Data ) ;
         //            if(Data == 1)
-        Com_ReceiveSignal(SW_1_RX, (void*) &Switch1_Curr ) ;
+        Com_ReceiveSignal((Com_SignalIdType)SW_1_RX, (void*) &Switch1_Curr ) ;
         //UARTprintf("\nCOM_RecieveSignal Switch1 is executed\n");
-        Com_ReceiveSignal(SW_2_RX, (void*) &Switch2_Curr ) ;
+        Com_ReceiveSignal((Com_SignalIdType)SW_2_RX, (void*) &Switch2_Curr ) ;
         //UARTprintf("\nCOM_RecieveSignal Switch2 is executed\n");
 
        // Switch1_Curr=ComSignalBuffer_1 [0];
@@ -145,20 +145,20 @@ LEDTask(void *pvParameters)
                 //
                 // Update the LED buffer to turn off the currently working.
                 //
-                g_pui32Colors[g_ui8ColorsIndx] = 0x0000;
+                g_pui32Colors[g_ui8ColorsIndx] = (uint32)0x0000;
 
                 //
                 // Update the index to next LED
                 g_ui8ColorsIndx++;
-                if(g_ui8ColorsIndx > 2)
+                if(g_ui8ColorsIndx > (uint8)2)
                 {
-                    g_ui8ColorsIndx = 0;
+                    g_ui8ColorsIndx = (uint8)0;
                 }
 
                 //
                 // Update the LED buffer to turn on the newly selected LED.
                 //
-                g_pui32Colors[g_ui8ColorsIndx] = 0x8000;
+                g_pui32Colors[g_ui8ColorsIndx] = (uint32)0x8000;
 
                 //
                 // Configure the new LED settings.
