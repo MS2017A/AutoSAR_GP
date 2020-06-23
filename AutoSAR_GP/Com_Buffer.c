@@ -45,6 +45,8 @@ void Com_PduUnpacking(PduIdType ComRxPduId)
         {
             if (CHECKBIT(ComIPdus[ComRxPduId].ComIPduDataPtr, ComIPdus[ComRxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitPosition))
             {
+                /*TODO:add this part in an inline function*/
+                /*TODO:rename this function*/
                 Com_ReadSignalDataFromPduBuffer(ComRxPduId,&ComIPdus[ComRxPduId].ComIPduSignalRef[signalIndex],NORMAL_SIGNAL);
                 if (ComIPdus[ComRxPduId].ComIPduSignalRef->ComNotification != NULL_PTR)
                 {
@@ -281,7 +283,7 @@ void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * sign
     }
 }
 
-
+/*TODO: add critical section*/
 void Com_ReadSignalDataFromSignalBuffer (const uint16 signalId,  void * signalData)
 {
     uint8 Size;
