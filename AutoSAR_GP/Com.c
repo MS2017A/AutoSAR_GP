@@ -80,7 +80,7 @@ LOCAL VAR(PduIdType, memclass)                rxDeferredPduArr[NUMBER_OF_AUXILAR
  *                     Functions Definitions                     *
  *****************************************************************/
 LOCAL FUNC(boolean ,memclass) validateSignalID (VAR(Com_SignalIdType, memclass) SignalId)
-                                                                                                                                                                                                                                        {
+                                                                                                                                                                                                                                                                                        {
     boolean result=TRUE;
     if(SignalId<(Com_SignalIdType)COM_NUM_OF_SIGNAL)
     {
@@ -91,7 +91,7 @@ LOCAL FUNC(boolean ,memclass) validateSignalID (VAR(Com_SignalIdType, memclass) 
         result = (boolean)FALSE;
     }
     return result;
-                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                                        }
 
 LOCAL FUNC(void, memclass)
 Com_ReadSignalDataFromSignalBuffer (CONST(uint16, memclass)  signalId,  P2VAR(void, memclass, ptrclass) signalData)
@@ -646,17 +646,8 @@ Com_SendSignal( VAR(Com_SignalIdType, memclass) SignalId, CONSTP2VAR(void, memcl
                     break;
 #if 0 /*repitition is not supported now*/
                 case TRIGGERED:
-                    privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft = \
-                    (ComTxIPdus[IPdu->ComTxIPdu].ComTx) + 1;
                     break;
-
                 case TRIGGERED_ON_CHANGE:
-                    if (Asu_IPdu->Com_Asu_Pdu_changed)
-                    {
-                        Asu_IPdu->Com_Asu_TxIPduTimers.ComTxIPduNumberOfRepetitionsLeft = \
-                                (IPdu->ComTxIPdu.ComTxModeFalse.ComTxMode.ComTxModeNumberOfRepetitions) + 1;
-                        Asu_IPdu->Com_Asu_Pdu_changed = (boolean)FALSE;
-                    }
                     break;
 #endif
                 case TRIGGERED_ON_CHANGE_WITHOUT_REPETITION:
@@ -1304,12 +1295,15 @@ Com_SendSignalGroup(VAR(Com_SignalGroupIdType, memclass) SignalGroupId )
 {
     VAR(uint8, AUTOMATIC)  result;
     VAR(uint8, AUTOMATIC)  signalIndex;
+    VAR(uint32, AUTOMATIC)  byteIndex;
+    VAR(boolean, AUTOMATIC) signalUpdated;
 
     result=E_OK;
     if(SignalGroupId<(Com_SignalGroupIdType)COM_NUM_OF_GROUP_SIGNAL)
     {
         if(ComIPdus[ComSignalGroups[SignalGroupId].ComIPduHandleId].ComIPduDirection==SEND)
         {
+            signalUpdated=(boolean)FALSE;
             Rte_enterCriticaSection();
             for(signalIndex=(uint8)0;signalIndex< ComSignalGroups[SignalGroupId].ComIPduNumberOfGroupSignals;signalIndex++)
             {
@@ -1349,6 +1343,104 @@ Com_SendSignalGroup(VAR(Com_SignalGroupIdType, memclass) SignalGroupId )
                 }
             }
             Rte_exitCriticalSection();
+            switch(ComSignalGroups[SignalGroupId].ComTransferProperty)
+            {
+            case TRIGGERED_WITHOUT_REPETITION:
+                signalUpdated=(boolean)TRUE;
+                break;
+#if 0 /*repitition is not supported now*/
+            case TRIGGERED:
+                break;
+            case TRIGGERED_ON_CHANGE:
+                break;
+#endif
+            case TRIGGERED_ON_CHANGE_WITHOUT_REPETITION:
+                for(signalIndex=(uint8)0;signalIndex< ComSignalGroups[SignalGroupId].ComIPduNumberOfGroupSignals;signalIndex++)
+                {
+                    switch(ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalType)
+                    {
+                    case BOOLEAN:
+                    case SINT8:
+                    case UINT8:
+                        if(((uint8*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)[REAL_BUFFER]!=\
+                                ((uint8*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)[SHADOW_BUFFER])
+                        {
+                            signalUpdated=(boolean)TRUE;
+                        }
+                        break;
+                    case FLOAT32:
+                    case UINT32:
+                    case SINT32:
+                        if(((uint32*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)[REAL_BUFFER]!=\
+                                ((uint32*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)[SHADOW_BUFFER])
+                        {
+                            signalUpdated=(boolean)TRUE;
+                        }
+                        break;
+                    case FLOAT64:
+                    case UINT64:
+                    case SINT64:
+                        if(((uint64*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)[REAL_BUFFER]!=
+                                ((uint64*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)[SHADOW_BUFFER])
+                        {
+                            signalUpdated=(boolean)TRUE;
+                        }
+                        break;
+                    case UINT16:
+                    case SINT16:
+                        if(((uint16*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)[REAL_BUFFER]!=
+                                ((uint16*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)[SHADOW_BUFFER])
+                        {
+                            signalUpdated=(boolean)TRUE;
+                        }
+                        break;
+                    case UINT8_N:
+                        memcpy((void*)(((uint8*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)+\
+                                ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength)\
+                                ,ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr,\
+                                ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength);
+                        for(byteIndex=(uint32)0;byteIndex<ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength;byteIndex++)
+                        {
+                            if((((uint8*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)+\
+                                    ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalLength)[byteIndex]!=\
+                                    ((uint8*)ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalDataPtr)[byteIndex])
+
+                            {
+                                signalUpdated=(boolean)TRUE;
+                                break;
+                            }
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+                    if(signalUpdated==(boolean)TRUE)
+                    {
+                        break;
+                    }
+                }
+                break;
+            default:
+                break;
+            }
+            if((boolean)TRUE==signalUpdated)
+            {
+                privateTxIPdus[ComIPdus[ComSignalGroups[SignalGroupId].ComIPduHandleId].ComTxIPdu].numberOfRepetitionsLeft = (uint8)0x01;
+                privateIPdus[ComSignalGroups[SignalGroupId].ComIPduHandleId].updated=(boolean)TRUE;
+                if(ComSignalGroups[SignalGroupId].ComUpdateBitEnabled!=(boolean)FALSE)
+                {
+                    /* Set the update bit of this signal */
+                    SETBIT(ComIPdus[ComSignalGroups[SignalGroupId].ComIPduHandleId].ComIPduDataPtr,ComSignalGroups[SignalGroupId].ComUpdateBitPosition);
+                }
+                else
+                {
+
+                }
+            }
+            else
+            {
+
+            }
         }
         else
         {
