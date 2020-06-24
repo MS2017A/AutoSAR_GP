@@ -38,7 +38,7 @@
 #define	COM_CANCELLATION_SUPPORT					TRUE
 
 /*error detection*/
-#define COM_CONFIGURATION_USE_DET					FALSE
+#define COM_DEV_ERROR_DETECT					TRUE
 
 /*Enables globally for the whole Com module the minimum delay time moni-toring for cyclic and repeated transmissions 
   (ComTxModeMo-de=PERIODIC or ComTxModeMode=MIXED
@@ -51,6 +51,9 @@
 
 /* The period between successive calls to Com_MainFunctionTx in ms */
 #define COM_TX_TIMEBASE 								((float32)0.2)
+
+#define COM_MODULE_ID ((uint16)0)
+#define COM_INSTANCE_ID ((uint8)0)
 
 #endif
 
