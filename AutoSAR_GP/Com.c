@@ -16,8 +16,8 @@
 #define REAL_BUFFER                                 1
 
 /*TODO: check which file must be in*/
-#define ENTER_CRITICAL_SECTION()             __asm("    cpsie   i\n");
-#define EXIT_CRITICAL_SECTION()              __asm("    cpsid   i\n");
+#define ENTER_CRITICAL_SECTION()             __asm("    cpsie   i\n")
+#define EXIT_CRITICAL_SECTION()              __asm("    cpsid   i\n")
 
 #define NUMBER_OF_AUXILARY_ARR             2
 
@@ -151,10 +151,8 @@ Com_MainFunctionRx(VAR(void, memclass))
     for(DeferredIndex=(uint16)0x00 ; DeferredIndex<mainRxNumberOfReceivedPdu ; DeferredIndex++)
     {
         pduId =  rxDeferredPduArr[rxIndicationProcessingDeferredPduIndex^((uint8)0x01)][DeferredIndex];
-        /* copy the deferred buffer to the actual pdu buffer TODO: remove lock */
-        privateIPdus[pduId].locked=(boolean)TRUE;
+        /* copy the deferred buffer to the actual pdu buffer */
         Com_PduUnpacking(pduId);
-        privateIPdus[pduId].locked=(boolean)FALSE;
     }
 }
 
@@ -402,7 +400,9 @@ Com_SendSignal( VAR(Com_SignalIdType, memclass) SignalId, CONSTP2VAR(void, memcl
             {
                 privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft = (uint8)0x01;
                 privateIPdu->updated=(boolean)TRUE;
+                ENTER_CRITICAL_SECTION();
                 Com_WriteSignalDataToSignalBuffer(SignalId, SignalDataPtr);
+                EXIT_CRITICAL_SECTION();
                 if(Signal->ComUpdateBitEnabled!=(boolean)FALSE)
                 {
                     /* Set the update bit of this signal */
@@ -448,7 +448,9 @@ Com_ReceiveSignal( VAR(Com_SignalIdType, memclass) SignalId, P2VAR(void, memclas
         if(SignalDataPtr)
         {
             /*Extract the signal data from the Pdu buffer*/
+            ENTER_CRITICAL_SECTION();
             Com_ReadSignalDataFromSignalBuffer(SignalId, SignalDataPtr);
+            EXIT_CRITICAL_SECTION();
         }
         else
         {
@@ -597,6 +599,9 @@ Com_TriggerIPDUSend(VAR(PduIdType, memclass) PduId)
 
             if (privateIPdu->locked)
             {
+#if COM_DEV_ERROR_DETECT
+                Det_ReportError(COM_MODULE_ID,COM_INSTANCE_ID,COM_TRIGGER_IPDU_SEND_ID,COM_E_SKIPPED_TRANSMISSION);
+#endif
                 result=E_NOT_OK;
             }
             else
@@ -607,16 +612,20 @@ Com_TriggerIPDUSend(VAR(PduIdType, memclass) PduId)
                     privateIPdu->updated=(boolean)FALSE;
                     Com_PackSignalsToPdu(PduId);
                 }
-                if(IPdu->ComIPduType==NORMAL)
-                {
-                    privateIPdu->locked=(boolean)FALSE;
-                }
                 IPdu = GET_IPdu(PduId);
                 PduInfoPackage.SduDataPtr = (uint8 *)IPdu->ComIPduDataPtr;
                 PduInfoPackage.SduLength = (uint32)IPdu->ComIPduSize;
                 if (PduR_ComTransmit(com_pdur[PduId], &PduInfoPackage) != (Std_ReturnType)E_OK)
                 {
                     result=E_NOT_OK;
+                }
+                else
+                {
+
+                }
+                if(IPdu->ComIPduType==NORMAL)
+                {
+                    privateIPdu->locked=(boolean)FALSE;
                 }
                 else
                 {
@@ -674,10 +683,7 @@ Com_RxIndication(VAR(PduIdType, memclass) ComRxPduId,CONSTP2VAR(PduInfoType, mem
             memcpy(ComIPdus[ComRxPduId].ComIPduDataPtr, PduInfoPtr->SduDataPtr, (uint32)ComIPdus[ComRxPduId].ComIPduSize);
             if(ComIPdus[ComRxPduId].ComIPduSignalProcessing == IMMEDIATE)
             {
-                /*TODO: Remove lock buffer from signal group*/
-                privateIPdus[ComRxPduId].locked=(boolean)TRUE;
                 Com_PduUnpacking(ComRxPduId);
-                privateIPdus[ComRxPduId].locked=(boolean)FALSE;
             }
             else
             {
@@ -761,24 +767,24 @@ Com_TpRxIndication(VAR(PduIdType, memclass) ComRxPduId,VAR(Std_ReturnType, memcl
     }
     else
     {
+        privateIPdus[ComRxPduId].locked=(boolean)FALSE;
         if (Result == E_OK)
         {
-            if((ComIPdus[ComRxPduId].ComIPduDirection == RECEIVE) && (ComIPdus[ComRxPduId].ComIPduType == TP))
+            if(ComIPdus[ComRxPduId].ComIPduSignalProcessing == IMMEDIATE)
             {
-                if(ComIPdus[ComRxPduId].ComIPduSignalProcessing == IMMEDIATE)
-                {
-                    Com_PduUnpacking(ComRxPduId);
-                    privateIPdus[ComRxPduId].locked=(boolean)FALSE;
-                }
-                else
-                {
-                    ENTER_CRITICAL_SECTION();
-                    rxDeferredPduArr[rxIndicationProcessingDeferredPduIndex][rxindicationNumberOfRecievedPdu]=ComRxPduId;
-                    rxindicationNumberOfRecievedPdu++;
-                    EXIT_CRITICAL_SECTION();
-                    privateIPdus[ComRxPduId].locked=(boolean)FALSE;
-                }
+                Com_PduUnpacking(ComRxPduId);
             }
+            else
+            {
+                ENTER_CRITICAL_SECTION();
+                rxDeferredPduArr[rxIndicationProcessingDeferredPduIndex][rxindicationNumberOfRecievedPdu]=ComRxPduId;
+                rxindicationNumberOfRecievedPdu++;
+                EXIT_CRITICAL_SECTION();
+            }
+        }
+        else
+        {
+
         }
     }
 }
@@ -856,11 +862,8 @@ Com_TpTxConfirmation(VAR(PduIdType, memclass) TxPduId, VAR(Std_ReturnType, memcl
     {
         if(result==E_OK)
         {
-            if()
-            {
-                privateIPdus[TxPduId].locked=(uint8)FALSE;
-                privateGeneralTxConfirmation(TxPduId);
-            }
+            privateIPdus[TxPduId].locked=(uint8)FALSE;
+            privateGeneralTxConfirmation(TxPduId);
         }
     }
 }
@@ -893,9 +896,9 @@ Com_SendSignalGroup(VAR(Com_SignalGroupIdType, memclass) SignalGroupId )
     result=E_OK;
     if((SignalGroupId<(Com_SignalGroupIdType)COM_NUM_OF_GROUP_SIGNAL)&&(ComIPdus[ComSignalGroups[SignalGroupId].ComIPduHandleId].ComIPduDirection==SEND))
     {
-        if(privateIPdus[ComSignalGroups[SignalGroupId].ComIPduHandleId].locked)
+        ENTER_CRITICAL_SECTION();
+        if(!privateIPdus[ComSignalGroups[SignalGroupId].ComIPduHandleId].locked)
         {
-            /*TODO: add lock to all pdus packing process*/
             for(signalIndex=(uint8)0;signalIndex< ComSignalGroups[SignalGroupId].ComIPduNumberOfGroupSignals;signalIndex++)
             {
                 switch(ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalType)
@@ -938,6 +941,7 @@ Com_SendSignalGroup(VAR(Com_SignalGroupIdType, memclass) SignalGroupId )
         {
             result=E_NOT_OK;
         }
+        EXIT_CRITICAL_SECTION();
     }
     else
     {
@@ -958,12 +962,11 @@ Com_ReceiveSignalGroup(VAR(Com_SignalGroupIdType, memclass) SignalGroupId )
     result=E_OK;
     if((SignalGroupId<(Com_SignalGroupIdType)COM_NUM_OF_GROUP_SIGNAL)&&(ComIPdus[ComSignalGroups[SignalGroupId].ComIPduHandleId].ComIPduDirection==RECEIVE))
     {
-        /*TODO:remove buffer lock check*/
-        if(privateIPdus[ComSignalGroups[SignalGroupId].ComIPduHandleId].locked)
+        ENTER_CRITICAL_SECTION();
+        if(!privateIPdus[ComSignalGroups[SignalGroupId].ComIPduHandleId].locked)
         {
             for(signalIndex=(uint8)0;signalIndex< ComSignalGroups[SignalGroupId].ComIPduNumberOfGroupSignals;signalIndex++)
             {
-                /*TODO:add critical section to memory copy*/
                 switch(ComSignalGroups[SignalGroupId].ComIPduSignalRef[signalIndex].ComSignalType)
                 {
                 case BOOLEAN:
@@ -1004,6 +1007,7 @@ Com_ReceiveSignalGroup(VAR(Com_SignalGroupIdType, memclass) SignalGroupId )
         {
             result=E_NOT_OK;
         }
+        EXIT_CRITICAL_SECTION();
     }
     else
     {

@@ -95,7 +95,7 @@
 #define COM_MAIN_FUNCTION_RX                        ((uint8)0x18)
 #define COM_MAIN_FUNCTION_TX                        ((uint8)0x19)
 
-/*******TODO: make com_type.h*****************************************************************
+/************************************************************************
  *                       User-Defined Types                             *
  ************************************************************************/
 
@@ -192,7 +192,7 @@ typedef struct
     /* Pointer to the first signal in the IPdu */
     const ComSignal_type*       ComIPduSignalRef;
 
-    /* Pointer to the first signal group. TODO */
+    /* Pointer to the first signal group. */
     const ComSignalGroup_type* ComIPduSignalGroupRef;
 
     /* size of the Pdu in bytes */
@@ -216,7 +216,7 @@ typedef struct
     /* Number of Signal */
     uint8               ComIPduNumOfSignals;
 
-    /* Number of Signal group. TODO*/
+    /* Number of Signal group.*/
     uint8               ComIPduNumberOfSignalGroups;
 }ComIPdu_type;
 
