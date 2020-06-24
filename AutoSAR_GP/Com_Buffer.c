@@ -6,18 +6,19 @@
 #define NORMAL_SIGNAL   ((uint8)0x00)
 #define GROUP_SIGNAL    ((uint8)0xff)
 
-static void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal,uint8 type);
-static void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type* const SignalRef,uint8 type);
+LOCAL FUNC(void, memclass) Com_WriteSignalDataToPduBuffer(CONSTP2CONST(ComSignal_type, memclass, ptrclass) signal,VAR(uint8, memclass) type);
+LOCAL FUNC(void, memclass) Com_ReadSignalDataFromPduBuffer(VAR(PduIdType, memclass) ComRxPduId,CONSTP2CONST(ComSignal_type, memclass, ptrclass) SignalRef,VAR(uint8, memclass) type);
 
-extern const ComIPdu_type   ComIPdus[COM_NUM_OF_IPDU];
-extern const ComSignal_type ComSignals[COM_NUM_OF_SIGNAL];
-extern const ComSignalGroup_type ComSignalGroups[COM_NUM_OF_GROUP_SIGNAL];
+extern CONST(ComIPdu_type, memclass)        ComIPdus[COM_NUM_OF_IPDU];
+extern CONST(ComSignal_type, memclass)      ComSignals[COM_NUM_OF_SIGNAL];
+extern CONST(ComSignalGroup_type, memclass) ComSignalGroups[COM_NUM_OF_GROUP_SIGNAL];
 
-void Com_PackSignalsToPdu(uint16 ComIPuId)
+FUNC(void, memclass)
+Com_PackSignalsToPdu(VAR(uint16, memclass) ComIPuId)
 {
-    uint8 signalIndex;
-    uint8 signalGroupIndex;
-    const ComIPdu_type *IPdu;
+    VAR(uint8, memclass) signalIndex;
+    VAR(uint8, memclass) signalGroupIndex;
+    CONSTP2VAR(ComIPdu_type, memclass, ptrclass) IPdu;
 
     IPdu = GET_IPdu(ComIPuId);
 
@@ -35,10 +36,11 @@ void Com_PackSignalsToPdu(uint16 ComIPuId)
     }
 }
 
-void Com_PduUnpacking(PduIdType ComRxPduId)
+FUNC(void, memclass)
+Com_PduUnpacking(VAR(PduIdType, memclass) ComRxPduId)
 {
-    uint8 signalIndex;
-    uint8 signalGroupIndex;
+    VAR(uint8, memclass) signalIndex;
+    VAR(uint8, memclass) signalGroupIndex;
     for ( signalIndex = (uint8)0; (ComIPdus[ComRxPduId].ComIPduNumOfSignals > signalIndex); signalIndex++)
     {
         if(ComIPdus[ComRxPduId].ComIPduSignalRef[signalIndex].ComUpdateBitEnabled)
@@ -106,12 +108,13 @@ void Com_PduUnpacking(PduIdType ComRxPduId)
 }
 
 
-static void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal,uint8 type)
+LOCAL FUNC(void, memclass)
+Com_WriteSignalDataToPduBuffer(CONSTP2CONST(ComSignal_type, memclass, ptrclass) const signal,VAR(uint8, memclass) type)
 {
-    uint8*  pdu;
-    uint64  mask;
-    uint32   position;
-    uint32   length;
+    P2VAR(uint8, memclass, ptrclass)    pdu;
+    VAR(uint64, memclass)               mask;
+    VAR(uint32, memclass)               position;
+    VAR(uint32, memclass)               length;
 
     pdu=ComIPdus[signal->ComIPduHandleId].ComIPduDataPtr;
     if(signal->ComSignalType==UINT8_N)/*TODO:check UINT8_DYN*/
@@ -169,13 +172,14 @@ static void Com_WriteSignalDataToPduBuffer(const ComSignal_type* const signal,ui
     }
 }
 
-static void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal_type*const SignalRef,uint8 type)
+LOCAL FUNC(void, memclass)
+Com_ReadSignalDataFromPduBuffer(VAR(PduIdType, memclass) ComRxPduId,CONSTP2CONST(ComSignal_type, memclass, ptrclass) SignalRef,VAR(uint8, memclass) type)
 {
     /*TODO: add the sequence of the TP case (for UINT8_DYN)*/
 
-    uint8 signalLength;
-    uint32 startBit;
-    uint64 Data;
+    VAR(uint8, memclass) signalLength;
+    VAR(uint32, memclass) startBit;
+    VAR(uint64, memclass) Data;
 
     startBit = SignalRef->ComBitPosition;
     signalLength = SignalRef->ComBitSize;
@@ -259,10 +263,11 @@ static void Com_ReadSignalDataFromPduBuffer(PduIdType ComRxPduId,const ComSignal
 
 
 
-void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * signalData)
+FUNC(void, memclass)
+Com_WriteSignalDataToSignalBuffer (CONST(uint16, memclass) signalId, CONSTP2VAR(void, memclass, ptrclass) signalData)
 {
-    const ComSignal_type * Signal;
-    uint8 mod;
+    CONSTP2VAR(ComSignal_type, memclass, ptrclass) Signal;
+    VAR(uint8, memclass) mod;
 
     Signal =  GET_Signal(signalId);
     if(Signal->ComSignalType==UINT8_N)
@@ -284,9 +289,10 @@ void Com_WriteSignalDataToSignalBuffer (const uint16 signalId, const void * sign
 }
 
 /*TODO: add critical section*/
-void Com_ReadSignalDataFromSignalBuffer (const uint16 signalId,  void * signalData)
+FUNC(void, memclass)
+Com_ReadSignalDataFromSignalBuffer (CONST(uint16, memclass)  signalId,  P2VAR(void, memclass, ptrclass) signalData)
 {
-    uint8 Size;
+    VAR(uint8, memclass) Size;
     if(ComSignals[signalId].ComSignalType==UINT8_N)
     {
         memcpy(signalData, ComSignals[signalId].ComSignalDataPtr,ComSignals[signalId].ComSignalLength);
