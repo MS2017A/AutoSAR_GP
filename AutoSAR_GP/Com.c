@@ -163,6 +163,7 @@ Com_MainFunctionTx(VAR(void, memclass))
 {
     AUTOMATIC CONSTP2VAR(ComIPdu_type, memclass, ptrclass) IPdu;
     VAR(boolean, memclass)                       mixed;
+    VAR(boolean, memclass)                       sent;
     VAR(uint16, memclass)                        sendIPduIndex;
     VAR(uint16, memclass)                        pendingIndex;
     VAR(uint16, memclass)                        mainTxPendingTxNotificationsNumber;
@@ -173,6 +174,7 @@ Com_MainFunctionTx(VAR(void, memclass))
         /*TODO: make one pdu to be sent once*/
         /*TODO: make function for menimum delay time*/
         mixed = (boolean)FALSE;
+        sent  = (boolean)FALSE;
 
         switch(ComTxIPdus[IPdu->ComTxIPdu].ComTxModeMode)
         {
@@ -202,6 +204,7 @@ Com_MainFunctionTx(VAR(void, memclass))
                         privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer=(float32)0.0;
 #endif
                         privateTxIPdus[IPdu->ComTxIPdu].numberOfRepetitionsLeft--;
+                        sent=(boolean)TRUE;
                     }
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
                 }
@@ -222,7 +225,7 @@ Com_MainFunctionTx(VAR(void, memclass))
                 }
             }
 #endif
-            if(privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod<=(float32)0.0)
+            if((privateTxIPdus[IPdu->ComTxIPdu].remainingTimePeriod<=(float32)0.0)&&(sent==FALSE))
             {
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
                 if(privateTxIPdus[IPdu->ComTxIPdu].minimumDelayTimer >= ComTxIPdus[IPdu->ComTxIPdu].ComMinimumDelayTime)
@@ -237,6 +240,25 @@ Com_MainFunctionTx(VAR(void, memclass))
 #endif
                     }
 #if COM_ENABLE_MDT_FOR_CYCLIC_TRANSMISSION
+                }
+                else
+                {
+#if COM_DEV_ERROR_DETECT
+                    Det_ReportError(COM_MODULE_ID, COM_INSTANCE_ID, COM_MAIN_FUNCTION_TX, COM_E_SKIPPED_TRANSMISSION);
+#endif
+                }
+#endif
+            }
+            else
+            {
+#if COM_DEV_ERROR_DETECT
+                if(sent==TRUE)
+                {
+                    Det_ReportError(COM_MODULE_ID, COM_INSTANCE_ID, COM_MAIN_FUNCTION_TX, COM_E_SKIPPED_TRANSMISSION);
+                }
+                else
+                {
+
                 }
 #endif
             }
