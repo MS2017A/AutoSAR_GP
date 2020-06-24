@@ -43,7 +43,7 @@
 /* Define:       LOCAL_INLINE                                                */
 /* Description:  Abstraction of keyword inline with static scope.            */
 /*****************************************************************************/
-#define LOCAL_INLINE static inline
+#define LOCAL_INLINE static INLINE
 
 
 /*****************************************************************************/
